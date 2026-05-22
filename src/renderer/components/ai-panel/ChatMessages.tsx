@@ -1,0 +1,120 @@
+import React, { useRef, useEffect } from 'react'
+import { useChatStore } from '@/stores/chatStore'
+import EmptyState from '@/components/common/EmptyState'
+
+export default function ChatMessages() {
+  const messages = useChatStore((s) => s.messages)
+  const streamingContent = useChatStore((s) => s.streamingContent)
+  const isStreaming = useChatStore((s) => s.isStreaming)
+  const isLoading = useChatStore((s) => s.isLoading)
+  const bottomRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [messages, streamingContent])
+
+  if (messages.length === 0 && !isStreaming) {
+    return (
+      <div className="flex-1 flex items-center justify-center">
+        <EmptyState
+          icon={
+            <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round">
+              <path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20z" />
+              <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+              <line x1="12" y1="17" x2="12.01" y2="17" />
+            </svg>
+          }
+          title="开始提问"
+          description="在下方输入你对文档的问题，AI 将基于文档内容为你解答"
+        />
+      </div>
+    )
+  }
+
+  return (
+    <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
+      {messages.map((msg) => (
+        <ChatBubble key={msg.id} role={msg.role} content={msg.content} />
+      ))}
+
+      {/* Streaming message */}
+      {isStreaming && streamingContent && (
+        <ChatBubble role="assistant" content={streamingContent} isStreaming />
+      )}
+
+      {/* Loading indicator */}
+      {isLoading && !streamingContent && (
+        <div className="flex items-center gap-2 px-2 py-3">
+          <div
+            className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0"
+            style={{ background: 'var(--bg-tertiary)' }}
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
+            </svg>
+          </div>
+          <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
+            AI 正在思考...
+          </span>
+        </div>
+      )}
+
+      <div ref={bottomRef} />
+    </div>
+  )
+}
+
+function ChatBubble({
+  role,
+  content,
+  isStreaming,
+}: {
+  role: 'user' | 'assistant' | 'system'
+  content: string
+  isStreaming?: boolean
+}) {
+  const isUser = role === 'user'
+
+  return (
+    <div className={`flex gap-2.5 ${isUser ? 'flex-row-reverse' : ''} animate-fade-in`}>
+      {/* Avatar */}
+      <div
+        className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5"
+        style={{
+          background: isUser ? 'var(--accent)' : 'var(--bg-tertiary)',
+          color: isUser ? '#fff' : 'var(--text-secondary)',
+        }}
+      >
+        {isUser ? (
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+            <circle cx="12" cy="7" r="4" />
+          </svg>
+        ) : (
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+            <path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20z" />
+            <path d="M8 10s1.5 2 4 2 4-2 4-2" />
+            <line x1="9" y1="15" x2="15" y2="15" />
+          </svg>
+        )}
+      </div>
+
+      {/* Content */}
+      <div
+        className={`rounded-2xl px-3.5 py-2.5 max-w-[85%] text-sm leading-relaxed ${
+          isStreaming ? 'typing-cursor' : ''
+        }`}
+        style={{
+          background: isUser ? 'var(--chat-user-bg)' : 'var(--chat-ai-bg)',
+          color: isUser ? 'var(--chat-user-text)' : 'var(--chat-ai-text)',
+          borderTopRightRadius: isUser ? '4px' : undefined,
+          borderTopLeftRadius: !isUser ? '4px' : undefined,
+        }}
+      >
+        <div className="markdown-content text-[13px] whitespace-pre-wrap break-words">
+          {content}
+        </div>
+      </div>
+    </div>
+  )
+}

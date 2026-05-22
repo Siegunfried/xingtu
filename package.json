@@ -1,0 +1,37 @@
+{
+  "name": "xingtu",
+  "version": "1.0.0",
+  "description": "星图 - 三栏式 AI 智能阅读器",
+  "main": "./out/main/index.js",
+  "scripts": {
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "preview": "electron-vite preview"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.39.0",
+    "dexie": "^4.0.11",
+    "mammoth": "^1.9.1",
+    "pdfjs-dist": "^4.10.38",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-markdown": "^9.0.3",
+    "remark-gfm": "^4.0.0",
+    "uuid": "^11.1.0",
+    "zustand": "^5.0.3"
+  },
+  "devDependencies": {
+
+    "@types/react": "^18.3.18",
+    "@types/react-dom": "^18.3.5",
+    "@types/uuid": "^10.0.0",
+    "@vitejs/plugin-react": "^4.3.4",
+    "autoprefixer": "^10.4.20",
+    "electron": "^33.4.0",
+    "electron-vite": "^2.3.0",
+    "postcss": "^8.5.1",
+    "tailwindcss": "^3.4.17",
+    "typescript": "^5.7.3",
+    "vite": "^6.0.11"
+  }
+}
