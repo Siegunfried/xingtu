@@ -27,44 +27,33 @@ export default function FileTree({ onOpenStarMap }: Props) {
     if (saved) useWorkspaceStore.getState().setWorkspacePath(saved)
   }, [])
 
-  // Auto-expand directory when a new note is created
+  // Auto-load note dir when a new note is created
   useEffect(() => {
     if (!autoExpandDir) return
     const loadAndExpand = async () => {
       const entries = await window.electronAPI.listDir(autoExpandDir)
       setSubEntries((prev) => ({ ...prev, [autoExpandDir]: entries }))
-      setExpandedDirs((prev) => new Set(prev).add(autoExpandDir))
       clearAutoExpand()
     }
     loadAndExpand()
   }, [autoExpandDir, clearAutoExpand])
 
-  // Auto-expand note folders on initial load / refresh
+  // Preload note children for documents with matching note folders
   useEffect(() => {
     if (!workspacePath || rootEntries.length === 0) return
-    const expandNoteFolders = async () => {
-      const toExpand: string[] = []
-      const docNames = new Set(
-        rootEntries.filter((e) => !e.isDirectory).map((e) => e.name.replace(/\.[^.]+$/, ''))
-      )
-      for (const entry of rootEntries) {
-        if (entry.isDirectory && docNames.has(entry.name)) {
-          toExpand.push(entry.path)
-        }
-      }
-      if (toExpand.length === 0) return
+    const loadNotes = async () => {
+      const docs = rootEntries.filter((e) => !e.isDirectory && isDoc(e))
+      const dirs = rootEntries.filter((e) => e.isDirectory)
+      const docNames = new Set(docs.map((d) => d.name.replace(/\.[^.]+$/, '')))
+      const noteDirs = dirs.filter((d) => docNames.has(d.name))
+      if (noteDirs.length === 0) return
       const entriesMap: Record<string, FileEntry[]> = {}
-      for (const dir of toExpand) {
-        entriesMap[dir] = await window.electronAPI.listDir(dir)
+      for (const dir of noteDirs) {
+        entriesMap[dir.path] = await window.electronAPI.listDir(dir.path)
       }
       setSubEntries((prev) => ({ ...prev, ...entriesMap }))
-      setExpandedDirs((prev) => {
-        const next = new Set(prev)
-        toExpand.forEach((d) => next.add(d))
-        return next
-      })
     }
-    expandNoteFolders()
+    loadNotes()
   }, [workspacePath, rootEntries])
 
   const toggleDir = async (dirPath: string) => {
@@ -108,8 +97,21 @@ export default function FileTree({ onOpenStarMap }: Props) {
   }
 
   const isDoc = (entry: FileEntry) => DOC_EXTS.has(entry.name.split('.').pop()?.toLowerCase() || '')
-  const isNoteDir = (entry: FileEntry) =>
-    entry.isDirectory && rootEntries.some((e) => !e.isDirectory && e.name.replace(/\.[^.]+$/, '') === entry.name)
+
+  // Merge note folders into their parent documents
+  const docEntries = rootEntries.filter((e) => !e.isDirectory && isDoc(e))
+  const dirEntries = rootEntries.filter((e) => e.isDirectory)
+  const noteDirNames = new Set(docEntries.map((d) => d.name.replace(/\.[^.]+$/, '')))
+  // Standalone dirs = directories that are NOT note folders (no matching document)
+  const standaloneDirs = dirEntries.filter((d) => !noteDirNames.has(d.name))
+
+  // Build paired entries: document + its note children
+  const pairedEntries = docEntries.map((doc) => {
+    const docBase = doc.name.replace(/\.[^.]+$/, '')
+    const noteDir = dirEntries.find((d) => d.name === docBase)
+    const children = noteDir ? (subEntries[noteDir.path] || []) : []
+    return { doc, children }
+  })
 
   return (
     <div className="flex flex-col h-full" style={{ background: 'var(--bg-secondary)' }}>
@@ -135,16 +137,33 @@ export default function FileTree({ onOpenStarMap }: Props) {
 
       {/* File tree */}
       <div className="flex-1 overflow-y-auto py-1">
-        {rootEntries.map((entry) => (
+        {/* Document entries with merged note children */}
+        {pairedEntries.map(({ doc, children }) => (
           <TreeItem
-            key={entry.path} entry={entry}
-            isDoc={isDoc(entry)} isNoteDir={isNoteDir(entry)}
+            key={doc.path} entry={doc}
+            isDoc={true}
             selectedFilePath={selectedFilePath} selectedNotePath={selectedNotePath}
-            isExpanded={expandedDirs.has(entry.path)}
-            subEntries={subEntries[entry.path] || []}
-            onToggleDir={() => toggleDir(entry.path)}
+            isExpanded={true}
+            hasNoteChildren={children.length > 0}
+            noteChildren={children}
             onClickFile={handleClickFile} onClickNote={handleClickNote}
             onDelete={deleteEntry}
+          />
+        ))}
+
+        {/* Standalone directories (not note folders) */}
+        {standaloneDirs.map((dir) => (
+          <TreeItem
+            key={dir.path} entry={dir}
+            isDoc={false}
+            selectedFilePath={selectedFilePath} selectedNotePath={selectedNotePath}
+            isExpanded={expandedDirs.has(dir.path)}
+            hasNoteChildren={false}
+            noteChildren={[]}
+            onClickFile={handleClickFile} onClickNote={handleClickNote}
+            onDelete={deleteEntry}
+            onToggleDir={() => toggleDir(dir.path)}
+            subEntries={subEntries[dir.path] || []}
           />
         ))}
       </div>
@@ -166,20 +185,30 @@ export default function FileTree({ onOpenStarMap }: Props) {
 }
 
 function TreeItem({
-  entry, isDoc, isNoteDir, selectedFilePath, selectedNotePath,
-  isExpanded, subEntries, onToggleDir, onClickFile, onClickNote, onDelete,
+  entry, isDoc, selectedFilePath, selectedNotePath,
+  isExpanded, hasNoteChildren, noteChildren,
+  onClickFile, onClickNote, onDelete,
+  onToggleDir, subEntries,
   depth = 0, isLast = true,
 }: {
-  entry: FileEntry; isDoc: boolean; isNoteDir: boolean
+  entry: FileEntry; isDoc: boolean
   selectedFilePath: string | null; selectedNotePath: string | null
-  isExpanded: boolean; subEntries: FileEntry[]
-  onToggleDir: () => void; onClickFile: (path: string) => void
-  onClickNote: (path: string) => void; onDelete: (path: string) => void
+  isExpanded: boolean
+  hasNoteChildren: boolean
+  noteChildren: FileEntry[]
+  onClickFile: (path: string) => void
+  onClickNote: (path: string) => void
+  onDelete: (path: string) => void
+  onToggleDir?: () => void
+  subEntries?: FileEntry[]
   depth?: number; isLast?: boolean
 }) {
   const isDir = entry.isDirectory
   const isSelected = selectedFilePath === entry.path || selectedNotePath === entry.path
-  const hasChildren = isDir && subEntries.length > 0
+  const canExpand = isDoc && hasNoteChildren
+  const showExpand = canExpand || isDir
+  const children = isDoc ? noteChildren : (subEntries || [])
+  const hasKids = children.length > 0
 
   // Extract note number from name like "01-标题.md"
   const noteMatch = entry.name.match(/^(\d{2})-(.+)\.md$/)
@@ -196,9 +225,17 @@ function TreeItem({
           paddingLeft: `${8 + depth * 16}px`,
         }}
         onClick={() => {
-          if (isDir) onToggleDir()
-          else if (entry.name.endsWith('.md') && !isDoc) onClickNote(entry.path)
-          else onClickFile(entry.path)
+          if (isDoc && hasNoteChildren) {
+            // Toggle expand for doc-with-notes (prev next expand state)
+            const nextExpand = !isExpanded
+            if (nextExpand) onClickFile(entry.path)
+          } else if (isDir) {
+            onToggleDir?.()
+          } else if (entry.name.endsWith('.md') && !isDoc) {
+            onClickNote(entry.path)
+          } else {
+            onClickFile(entry.path)
+          }
         }}
         onMouseEnter={(e) => { if (!isSelected) e.currentTarget.style.background = 'var(--sidebar-hover)' }}
         onMouseLeave={(e) => { if (!isSelected) e.currentTarget.style.background = 'transparent' }}
@@ -210,17 +247,11 @@ function TreeItem({
           </span>
         )}
 
-        {/* Chevron for directories */}
-        {isDir && !isNoteDir ? (
+        {/* Chevron */}
+        {showExpand ? (
           <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor"
             strokeWidth="2.5" strokeLinecap="round" className="flex-shrink-0 smooth-transition"
             style={{ color: 'var(--text-tertiary)', transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)' }}>
-            <polyline points="9 18 15 12 9 6" />
-          </svg>
-        ) : isNoteDir ? (
-          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-            strokeWidth="2.5" strokeLinecap="round" className="flex-shrink-0 smooth-transition"
-            style={{ color: '#eab308', transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)' }}>
             <polyline points="9 18 15 12 9 6" />
           </svg>
         ) : <span className="w-[10px] flex-shrink-0" />}
@@ -228,7 +259,7 @@ function TreeItem({
         {/* Icon */}
         {isDir ? (
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="flex-shrink-0"
-            style={{ color: isNoteDir ? '#eab308' : 'var(--accent)' }}>
+            style={{ color: 'var(--accent)' }}>
             <path d={isExpanded ? "M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2v1" : "M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"} />
           </svg>
         ) : (
@@ -262,31 +293,30 @@ function TreeItem({
         </button>
       </div>
 
-      {/* Child notes */}
-      {isDir && isExpanded && subEntries.length > 0 && (
+      {/* Children */}
+      {isExpanded && hasKids && (
         <div>
-          {subEntries.map((sub, i) => (
+          {children.map((child, i) => (
             <TreeItem
-              key={sub.path}
-              entry={sub}
+              key={child.path}
+              entry={child}
               isDoc={false}
-              isNoteDir={sub.isDirectory}
               selectedFilePath={selectedFilePath}
               selectedNotePath={selectedNotePath}
               isExpanded={false}
-              subEntries={[]}
-              onToggleDir={() => {}}
+              hasNoteChildren={false}
+              noteChildren={[]}
               onClickFile={onClickFile}
               onClickNote={onClickNote}
               onDelete={onDelete}
               depth={depth + 1}
-              isLast={i === subEntries.length - 1}
+              isLast={i === children.length - 1}
             />
           ))}
         </div>
       )}
-      {isDir && isExpanded && subEntries.length === 0 && (
-        <p className="text-[10px] py-0.5 italic" style={{ color: 'var(--text-tertiary)', paddingLeft: `${40 + depth * 16}px` }}>空</p>
+      {isExpanded && !hasKids && showExpand && (
+        <p className="text-[10px] py-0.5 italic" style={{ color: 'var(--text-tertiary)', paddingLeft: `${40 + depth * 16}px` }}>暂无笔记</p>
       )}
     </div>
   )
