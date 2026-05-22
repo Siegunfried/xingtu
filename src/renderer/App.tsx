@@ -90,6 +90,16 @@ export default function App() {
     loadDocuments()
   }, [])
 
+  // Sync selection with currentDocumentId (e.g. after import)
+  const currentDocumentId = useDocumentStore((s) => s.currentDocumentId)
+  useEffect(() => {
+    if (currentDocumentId && (!selection || selection.documentId !== currentDocumentId)) {
+      setSelection({ type: 'document', id: currentDocumentId, documentId: currentDocumentId })
+      loadMessages(currentDocumentId)
+      loadNote(currentDocumentId)
+    }
+  }, [currentDocumentId])
+
   // Drag & Drop handlers
   const handleDragEnter = useCallback((e: React.DragEvent) => {
     e.preventDefault()

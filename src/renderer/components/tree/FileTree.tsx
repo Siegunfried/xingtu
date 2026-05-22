@@ -44,7 +44,9 @@ export default function FileTree({ onSelect, selectedId }: FileTreeProps) {
     try {
       const file = await window.electronAPI.openFile()
       if (!file) return
-      await importDocument(file.name, file.format, file.data)
+      const docId = await importDocument(file.name, file.format, file.data)
+      await loadMessages(docId)
+      await loadNote(docId)
     } catch { /* store handles error */ }
   }
 
