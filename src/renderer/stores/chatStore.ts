@@ -3,7 +3,7 @@ import { v4 as uuid } from 'uuid'
 import type { ChatMessage } from '@/types'
 import { getMessages, saveMessage, deleteMessages } from '@/db/database'
 import { useWorkspaceStore } from './workspaceStore'
-import { streamChat, hasApiKey } from '@/services/aiService'
+import { streamChat, hasApiKey, regenerateNote } from '@/services/aiService'
 import { parseDocument } from '@/services/documentParser'
 import { useTextSelectionStore } from './textSelectionStore'
 
@@ -106,12 +106,19 @@ export const useChatStore = create<ChatState>((set, get) => ({
           isLoading: false, streamingContent: '', isStreaming: false,
         }))
 
-        // Create note as .md file in subfolder
+        // Generate professional note from conversation
         const ws = useWorkspaceStore.getState()
         const parentPath = ws.selectedFilePath || ws.selectedNotePath
         if (parentPath && fullText) {
-          const title = content.length > 30 ? content.slice(0, 30) + '...' : content
-          await ws.createNote(parentPath, title, `# ${title}\n\n${fullText}`)
+          const allMessages = [...get().messages]
+          const noteContent = await regenerateNote(
+            ws.currentFileContent?.name || '文档',
+            allMessages.map((m) => ({ role: m.role, content: m.content }))
+          )
+          if (noteContent) {
+            const title = content.length > 30 ? content.slice(0, 30) + '...' : content
+            await ws.createNote(parentPath, title, noteContent)
+          }
         }
       },
       onError: async (err) => {
