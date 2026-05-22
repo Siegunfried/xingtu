@@ -101,6 +101,12 @@ html, body, #root {
   transition: all 0.2s cubic-bezier(0.25, 0.1, 0.25, 1);
 }
 
+/* KaTeX formula dark mode */
+.katex { color: var(--text-primary); }
+.dark .katex { color: #e2e8f0; }
+.katex-display { overflow-x: auto; overflow-y: hidden; padding: 0.2em 0; }
+.katex-display > .katex { white-space: normal; }
+
 /* Markdown content styling */
 .markdown-content h1 { font-size: 1.5rem; font-weight: 700; margin: 1rem 0 0.5rem; color: var(--text-primary); }
 .markdown-content h2 { font-size: 1.25rem; font-weight: 600; margin: 0.75rem 0 0.5rem; color: var(--text-primary); }
