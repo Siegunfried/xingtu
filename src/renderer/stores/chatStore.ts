@@ -4,6 +4,7 @@ import type { ChatMessage } from '@/types'
 import { getMessages, saveMessage, deleteMessages } from '@/db/database'
 import { useWorkspaceStore } from './workspaceStore'
 import { streamChat, hasApiKey } from '@/services/aiService'
+import { parseDocument } from '@/services/documentParser'
 import { useTextSelectionStore } from './textSelectionStore'
 
 interface ChatState {
@@ -51,8 +52,17 @@ export const useChatStore = create<ChatState>((set, get) => ({
     const currentMessages = [...get().messages, userMsg]
     set({ messages: currentMessages, isLoading: true, streamingContent: '', isStreaming: true, error: null })
 
-    // Get document content from workspace store
-    const fileContent = ws.currentFileContent?.content || ''
+    // Get document content - for binary files, try reading as text and parse
+    let fileContent = ws.currentFileContent?.content || ''
+    const ext = ws.currentFileContent?.ext || ''
+    if (!fileContent && ['pdf', 'docx'].includes(ext)) {
+      const bin = await window.electronAPI.readBinaryFile(
+        ws.currentFileContent?.path || ''
+      )
+      if (bin) {
+        try { fileContent = await parseDocument(ext as 'pdf' | 'docx', bin.data) } catch { /* use empty */ }
+      }
+    }
 
     // Check for text selection context
     const textSel = useTextSelectionStore.getState().selection

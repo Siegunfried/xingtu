@@ -48,17 +48,34 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
   },
 
   selectFile: async (filePath: string) => {
-    const file = await window.electronAPI.readTextFile(filePath)
-    if (file) {
-      set({ selectedFilePath: filePath, selectedNotePath: null, currentFileContent: file })
+    const isText = filePath.match(/\.(txt|md)$/i)
+    let content = ''
+    if (isText) {
+      const file = await window.electronAPI.readTextFile(filePath)
+      content = file?.content || ''
     }
+    set({
+      selectedFilePath: filePath,
+      selectedNotePath: null,
+      currentFileContent: {
+        name: filePath.split(/[/\\]/).pop() || '',
+        path: filePath,
+        ext: filePath.split('.').pop()?.toLowerCase() || '',
+        content,
+        size: content.length,
+      },
+    })
   },
 
   selectNote: async (notePath: string) => {
     const file = await window.electronAPI.readTextFile(notePath)
-    if (file) {
-      set({ selectedNotePath: notePath, currentFileContent: file })
-    }
+    set({
+      selectedNotePath: notePath,
+      currentFileContent: file || {
+        name: notePath.split(/[/\\]/).pop() || '',
+        path: notePath, ext: 'md', content: '', size: 0,
+      },
+    })
   },
 
   createNote: async (parentFilePath, noteName, content) => {
