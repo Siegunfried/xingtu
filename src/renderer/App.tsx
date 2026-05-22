@@ -4,6 +4,7 @@ import { useWorkspaceStore } from '@/stores/workspaceStore'
 import { PROVIDERS, PROVIDER_ORDER, hasApiKey } from '@/services/aiService'
 import { saveApiKey, getApiKey, saveProviderConfig, saveModel, getProvider, getModel } from '@/services/apiKeyStore'
 import DiffPanel from '@/components/diff/DiffPanel'
+import StarMapPanel from '@/components/starmap/StarMapPanel'
 import { useDiffStore } from '@/stores/diffStore'
 import { useUndoStore } from '@/stores/undoStore'
 import type { AIProvider } from '@/types'
@@ -25,6 +26,9 @@ export default function App() {
   const [theme, setTheme] = useState<Theme>(() => {
     return (localStorage.getItem('xingtu-theme') as Theme) || 'system'
   })
+
+  // Star map
+  const [showStarMap, setShowStarMap] = useState(false)
 
   // Drag & Drop
   const [isDragging, setIsDragging] = useState(false)
@@ -158,7 +162,11 @@ export default function App() {
   return (
     <div className="h-screen w-screen overflow-hidden"
       onDragEnter={handleDragEnter} onDragOver={handleDragOver} onDragLeave={handleDragLeave} onDrop={handleDrop}>
-        <ThreeColumnLayout />
+      {showStarMap ? (
+        <StarMapPanel onClose={() => setShowStarMap(false)} />
+      ) : (
+        <ThreeColumnLayout onOpenStarMap={() => setShowStarMap(true)} />
+      )}
 
       {/* Drag overlay */}
       {isDragging && (

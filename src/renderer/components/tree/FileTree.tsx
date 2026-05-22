@@ -1,14 +1,13 @@
 import React, { useEffect, useState } from 'react'
 import { useWorkspaceStore } from '@/stores/workspaceStore'
 import { useChatStore } from '@/stores/chatStore'
-import { useStarMapStore } from '@/stores/starMapStore'
-import MiniStarMap from '@/components/starmap/MiniStarMap'
 import type { FileEntry } from '@/types'
 
 const DOC_EXTS = new Set(['pdf', 'docx', 'txt', 'md'])
-type SidebarTab = 'files' | 'stars'
 
-export default function FileTree() {
+interface Props { onOpenStarMap: () => void }
+
+export default function FileTree({ onOpenStarMap }: Props) {
   const workspacePath = useWorkspaceStore((s) => s.workspacePath)
   const rootEntries = useWorkspaceStore((s) => s.rootEntries)
   const openWorkspace = useWorkspaceStore((s) => s.openWorkspace)
@@ -18,13 +17,8 @@ export default function FileTree() {
   const selectedFilePath = useWorkspaceStore((s) => s.selectedFilePath)
   const selectedNotePath = useWorkspaceStore((s) => s.selectedNotePath)
   const loadMessages = useChatStore((s) => s.loadMessages)
-  const [tab, setTab] = useState<SidebarTab>('files')
   const [expandedDirs, setExpandedDirs] = useState<Set<string>>(new Set())
   const [subEntries, setSubEntries] = useState<Record<string, FileEntry[]>>({})
-
-  const selectedStar = useStarMapStore((s) => s.selectedNode)
-  const showCard = useStarMapStore((s) => s.showCard)
-  const closeCard = useStarMapStore((s) => s.closeCard)
 
   useEffect(() => {
     const saved = localStorage.getItem('xingtu-workspace')
@@ -51,18 +45,6 @@ export default function FileTree() {
   const handleClickNote = async (notePath: string) => {
     await selectNote(notePath)
     await loadMessages(notePath)
-  }
-
-  const handleOpenFromCard = async () => {
-    if (!selectedStar) return
-    if (selectedStar.type === 'document') {
-      await selectFile(selectedStar.path)
-      await loadMessages(selectedStar.path)
-    } else {
-      await selectNote(selectedStar.path)
-      await loadMessages(selectedStar.path)
-    }
-    closeCard()
   }
 
   if (!workspacePath) {
@@ -109,79 +91,34 @@ export default function FileTree() {
         </button>
       </div>
 
-      {/* Tab bar */}
-      <div className="flex items-center px-3 py-1 gap-1 flex-shrink-0"
-        style={{ borderBottom: '1px solid var(--border-color)' }}>
-        <button onClick={() => setTab('files')}
-          className="flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-medium smooth-transition"
-          style={{ background: tab === 'files' ? 'var(--sidebar-active)' : 'transparent', color: tab === 'files' ? 'var(--accent)' : 'var(--text-tertiary)' }}>
-          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
-          </svg>文件
-        </button>
-        <button onClick={() => setTab('stars')}
-          className="flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-medium smooth-transition"
-          style={{ background: tab === 'stars' ? 'var(--sidebar-active)' : 'transparent', color: tab === 'stars' ? 'var(--accent)' : 'var(--text-tertiary)' }}>
-          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-            <circle cx="12" cy="12" r="3" /><circle cx="4" cy="4" r="1" /><circle cx="20" cy="6" r="1" />
-          </svg>星图
-        </button>
+      {/* File tree */}
+      <div className="flex-1 overflow-y-auto py-1">
+        {rootEntries.map((entry) => (
+          <TreeItem
+            key={entry.path} entry={entry}
+            isDoc={isDoc(entry)} isNoteDir={isNoteDir(entry)}
+            selectedFilePath={selectedFilePath} selectedNotePath={selectedNotePath}
+            isExpanded={expandedDirs.has(entry.path)}
+            subEntries={subEntries[entry.path] || []}
+            onToggleDir={() => toggleDir(entry.path)}
+            onClickFile={handleClickFile} onClickNote={handleClickNote}
+            onDelete={deleteEntry}
+          />
+        ))}
       </div>
 
-      {/* File tree view */}
-      {tab === 'files' && (
-        <div className="flex-1 overflow-y-auto py-1">
-          {rootEntries.map((entry) => (
-            <TreeItem
-              key={entry.path} entry={entry}
-              isDoc={isDoc(entry)} isNoteDir={isNoteDir(entry)}
-              selectedFilePath={selectedFilePath} selectedNotePath={selectedNotePath}
-              isExpanded={expandedDirs.has(entry.path)}
-              subEntries={subEntries[entry.path] || []}
-              onToggleDir={() => toggleDir(entry.path)}
-              onClickFile={handleClickFile} onClickNote={handleClickNote}
-              onDelete={deleteEntry}
-            />
-          ))}
-        </div>
-      )}
-
-      {/* Star map view */}
-      {tab === 'stars' && (
-        <div className="flex-1 flex flex-col min-h-0">
-          <MiniStarMap />
-          <div className="flex-1 overflow-y-auto">
-            {showCard && selectedStar && (
-              <div className="m-2 p-3 rounded-xl animate-fade-in"
-                style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)' }}>
-                <div className="flex items-center gap-1.5 mb-2">
-                  <span className="w-2 h-2 rounded-full"
-                    style={{ background: selectedStar.type === 'document' ? 'var(--accent)' : '#60a5fa' }} />
-                  <span className="text-[10px] font-medium" style={{ color: 'var(--text-tertiary)' }}>
-                    {selectedStar.type === 'document' ? '文档' : '笔记'}
-                  </span>
-                </div>
-                <h3 className="text-xs font-semibold mb-1 truncate" style={{ color: 'var(--text-primary)' }}>
-                  {selectedStar.name}
-                </h3>
-                <p className="text-[10px] mb-3" style={{ color: 'var(--text-tertiary)' }}>
-                  {selectedStar.path.split(/[/\\]/).slice(-2).join('/')}
-                </p>
-                <button onClick={handleOpenFromCard}
-                  className="w-full py-1.5 rounded-lg text-[10px] font-medium smooth-transition"
-                  style={{ background: 'var(--accent)', color: '#fff' }}>
-                  打开{selectedStar.type === 'document' ? '文档' : '笔记'}
-                </button>
-              </div>
-            )}
-            {!showCard && (
-              <div className="flex-1 flex items-center justify-center p-4">
-                <p className="text-[10px]" style={{ color: 'var(--text-tertiary)' }}>点击星图节点查看详情</p>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
+      {/* Star map button */}
+      <div className="flex-shrink-0 px-3 py-2" style={{ borderTop: '1px solid var(--border-color)' }}>
+        <button onClick={onOpenStarMap}
+          className="flex items-center gap-2 w-full px-3 py-2 rounded-lg text-xs smooth-transition hover:opacity-80"
+          style={{ background: 'var(--accent-light)', color: 'var(--accent)' }}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+            <circle cx="12" cy="12" r="3" /><circle cx="4" cy="4" r="1" /><circle cx="20" cy="6" r="1.2" /><circle cx="6" cy="18" r="1" /><circle cx="18" cy="16" r="0.8" />
+            <line x1="12" y1="9" x2="20" y2="6" /><line x1="12" y1="9" x2="4" y2="4" /><line x1="13.5" y1="13.5" x2="6" y2="18" /><line x1="13.5" y1="13.5" x2="18" y2="16" />
+          </svg>
+          打开知识星图
+        </button>
+      </div>
     </div>
   )
 }
