@@ -8,6 +8,7 @@ import { saveApiKey, getApiKey, saveProviderConfig, saveModel, getProvider, getM
 import StarMapPanel from '@/components/starmap/StarMapPanel'
 import DiffPanel from '@/components/diff/DiffPanel'
 import { useDiffStore } from '@/stores/diffStore'
+import { useUndoStore } from '@/stores/undoStore'
 import type { TreeSelection } from '@/components/tree/FileTree'
 import type { AIProvider } from '@/types'
 
@@ -157,7 +158,11 @@ export default function App() {
   // Diff accept/reject
   const handleDiffAccept = useCallback(async () => {
     if (!pendingDiff) return
-    const { newContent, target } = pendingDiff
+    const { oldContent, newContent, target } = pendingDiff
+    const id = target === 'document' ? selection?.documentId : selection?.id
+    if (id) {
+      useUndoStore.getState().pushState(id, oldContent)
+    }
     if (target === 'document') {
       const docId = selection?.documentId
       if (docId) await updateDocument(docId, newContent)

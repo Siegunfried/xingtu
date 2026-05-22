@@ -1,7 +1,8 @@
-import React, { useMemo, useState } from 'react'
+import React, { useMemo, useState, useCallback } from 'react'
 import type { TreeSelection } from '@/components/tree/FileTree'
 import { useDocumentStore } from '@/stores/documentStore'
 import { useNotesStore } from '@/stores/notesStore'
+import { useUndoStore } from '@/stores/undoStore'
 import { getAllNotesForDocument } from '@/db/database'
 import MarkdownRenderer from './MarkdownRenderer'
 import EmptyState from '@/components/common/EmptyState'
@@ -14,6 +15,10 @@ export default function ContentViewer({ selection }: ContentViewerProps) {
   const documents = useDocumentStore((s) => s.documents)
   const updateDocument = useDocumentStore((s) => s.updateDocument)
   const updateNoteContent = useNotesStore((s) => s.updateNoteContent)
+  const pushState = useUndoStore((s) => s.pushState)
+  const undo = useUndoStore((s) => s.undo)
+  const redo = useUndoStore((s) => s.redo)
+  const undoStacks = useUndoStore((s) => s.undoStacks)
   const [isEditing, setIsEditing] = useState(false)
   const [editContent, setEditContent] = useState('')
   const [noteContent, setNoteContent] = useState<Record<string, string>>({})
@@ -24,7 +29,6 @@ export default function ContentViewer({ selection }: ContentViewerProps) {
     [documents, selection]
   )
 
-  // Load note content on selection
   React.useEffect(() => {
     if (!selection || selection.type !== 'note') return
     const loadNote = async () => {
@@ -43,10 +47,8 @@ export default function ContentViewer({ selection }: ContentViewerProps) {
   if (!selection || !currentDoc) {
     return (
       <div className="flex flex-col h-full">
-        <div
-          className="glass flex items-center px-5 py-2.5 flex-shrink-0"
-          style={{ borderBottom: '1px solid var(--border-color)' }}
-        >
+        <div className="glass flex items-center px-5 py-2.5 flex-shrink-0"
+          style={{ borderBottom: '1px solid var(--border-color)' }}>
           <span className="text-sm" style={{ color: 'var(--text-tertiary)' }}>阅读区</span>
         </div>
         <div className="flex-1 flex items-center justify-center">
@@ -66,15 +68,16 @@ export default function ContentViewer({ selection }: ContentViewerProps) {
   }
 
   const isDoc = selection.type === 'document'
-  const title = isDoc
-    ? currentDoc.title
-    : (noteTitles[selection.id] || '笔记')
-  const content = isDoc
-    ? currentDoc.content
-    : (noteContent[selection.id] || '加载中...')
+  const contentId = selection.id
+  const title = isDoc ? currentDoc.title : (noteTitles[contentId] || '笔记')
+  const content = isDoc ? currentDoc.content : (noteContent[contentId] || '加载中...')
   const format = isDoc ? currentDoc.format : 'md'
+  const stack = undoStacks[contentId]
+  const canUndo = stack && stack.past.length > 0
+  const canRedo = stack && stack.future.length > 0
 
   const handleStartEdit = () => {
+    pushState(contentId, content)
     setEditContent(content)
     setIsEditing(true)
   }
@@ -84,7 +87,7 @@ export default function ContentViewer({ selection }: ContentViewerProps) {
       await updateDocument(currentDoc.id, editContent)
     } else {
       await updateNoteContent(editContent)
-      setNoteContent((prev) => ({ ...prev, [selection.id]: editContent }))
+      setNoteContent((prev) => ({ ...prev, [contentId]: editContent }))
     }
     setIsEditing(false)
   }
@@ -93,6 +96,63 @@ export default function ContentViewer({ selection }: ContentViewerProps) {
     setIsEditing(false)
     setEditContent('')
   }
+
+  // Undo in edit mode: restore previous edit state
+  const handleUndo = useCallback(() => {
+    if (isEditing) {
+      const prev = undo(contentId)
+      if (prev !== null) setEditContent(prev)
+    } else {
+      // Undo a previously saved change
+      const prev = undo(contentId)
+      if (prev !== null) {
+        if (isDoc) {
+          pushState(contentId, currentDoc.content)
+          updateDocument(currentDoc.id, prev)
+        } else {
+          pushState(contentId, noteContent[contentId] || '')
+          updateNoteContent(prev)
+          setNoteContent((s) => ({ ...s, [contentId]: prev }))
+        }
+      }
+    }
+  }, [isEditing, contentId, undo, isDoc, currentDoc, pushState, updateDocument, updateNoteContent, noteContent])
+
+  // Redo in edit mode
+  const handleRedo = useCallback(() => {
+    if (isEditing) {
+      const next = redo(contentId)
+      if (next !== null) setEditContent(next)
+    } else {
+      const next = redo(contentId)
+      if (next !== null) {
+        if (isDoc) {
+          pushState(contentId, currentDoc.content)
+          updateDocument(currentDoc.id, next)
+        } else {
+          pushState(contentId, noteContent[contentId] || '')
+          updateNoteContent(next)
+          setNoteContent((s) => ({ ...s, [contentId]: next }))
+        }
+      }
+    }
+  }, [isEditing, contentId, redo, isDoc, currentDoc, pushState, updateDocument, updateNoteContent, noteContent])
+
+  // Keyboard shortcuts
+  React.useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'z' && !e.shiftKey) {
+        e.preventDefault()
+        handleUndo()
+      }
+      if ((e.metaKey || e.ctrlKey) && e.key === 'z' && e.shiftKey) {
+        e.preventDefault()
+        handleRedo()
+      }
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [handleUndo, handleRedo])
 
   const label = isDoc ? (
     <span className="text-[10px] px-1.5 py-0.5 rounded-full font-medium"
@@ -114,6 +174,33 @@ export default function ContentViewer({ selection }: ContentViewerProps) {
         style={{ borderBottom: '1px solid var(--border-color)' }}
       >
         <div className="flex items-center gap-2 min-w-0">
+          {/* Undo/Redo buttons */}
+          <div className="flex items-center gap-0.5 mr-2">
+            <button
+              onClick={handleUndo}
+              disabled={!canUndo}
+              className="w-6 h-6 rounded flex items-center justify-center smooth-transition disabled:opacity-25"
+              style={{ color: 'var(--text-secondary)' }}
+              title="撤销 (Ctrl+Z)"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="1 4 1 10 7 10" />
+                <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
+              </svg>
+            </button>
+            <button
+              onClick={handleRedo}
+              disabled={!canRedo}
+              className="w-6 h-6 rounded flex items-center justify-center smooth-transition disabled:opacity-25"
+              style={{ color: 'var(--text-secondary)' }}
+              title="重做 (Ctrl+Shift+Z)"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="23 4 23 10 17 10" />
+                <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
+              </svg>
+            </button>
+          </div>
           <h1 className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>
             {title}
           </h1>
@@ -121,7 +208,7 @@ export default function ContentViewer({ selection }: ContentViewerProps) {
         </div>
         <div className="flex items-center gap-2">
           <span className="text-[10px]" style={{ color: 'var(--text-tertiary)' }}>
-            {content.length.toLocaleString()} 字
+            {isEditing ? editContent.length : content.length} 字
           </span>
           {!isEditing ? (
             <button
