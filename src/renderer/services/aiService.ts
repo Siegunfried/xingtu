@@ -33,13 +33,15 @@ export const PROVIDERS: Record<AIProvider, ProviderConfig> = {
   deepseek: {
     id: 'deepseek',
     name: 'DeepSeek',
-    desc: '国产高性价比，推理能力强',
+    desc: '最新 V4 系列，百万上下文，旗舰推理',
     baseURL: 'https://api.deepseek.com/v1/chat/completions',
     models: [
-      { id: 'deepseek-chat', name: 'DeepSeek V3' },
-      { id: 'deepseek-reasoner', name: 'DeepSeek R1' },
+      { id: 'deepseek-v4-pro', name: 'V4 Pro (旗舰)' },
+      { id: 'deepseek-v4-flash', name: 'V4 Flash (快速)' },
+      { id: 'deepseek-chat', name: 'deepseek-chat (旧, 7月停用)' },
+      { id: 'deepseek-reasoner', name: 'deepseek-reasoner (旧, 7月停用)' },
     ],
-    defaultModel: 'deepseek-chat',
+    defaultModel: 'deepseek-v4-pro',
     requiresAuth: true,
   },
   openai: {
