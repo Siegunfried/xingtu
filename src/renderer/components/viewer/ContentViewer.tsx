@@ -1,7 +1,8 @@
-import React, { useMemo, useState, useEffect } from 'react'
+import React, { useMemo, useState, useEffect, useCallback, useRef } from 'react'
 import { useDocumentStore } from '@/stores/documentStore'
 import { useNotesStore } from '@/stores/notesStore'
 import { useUndoStore } from '@/stores/undoStore'
+import { useTextSelectionStore } from '@/stores/textSelectionStore'
 import { getAllNotesForDocument } from '@/db/database'
 import MarkdownRenderer from './MarkdownRenderer'
 import EmptyState from '@/components/common/EmptyState'
@@ -116,6 +117,46 @@ export default function ContentViewer() {
     }
   }
 
+  // Text selection tracking
+  const setSelection = useTextSelectionStore((s) => s.setSelection)
+  const clearSelection = useTextSelectionStore((s) => s.clearSelection)
+  const setToolbar = useTextSelectionStore((s) => s.setToolbar)
+  const showToolbar = useTextSelectionStore((s) => s.showToolbar)
+  const toolbarPos = useTextSelectionStore((s) => s.toolbarPos)
+  const contentRef = useRef<HTMLDivElement>(null)
+
+  const handleMouseUp = useCallback(() => {
+    const sel = window.getSelection()
+    if (!sel || sel.isCollapsed || !sel.toString().trim()) {
+      clearSelection()
+      return
+    }
+    const text = sel.toString()
+    // Find position in raw content
+    const idx = content.indexOf(text)
+    if (idx === -1) return
+    setSelection({
+      text,
+      startIndex: idx,
+      endIndex: idx + text.length,
+      contentId,
+      fullContent: content,
+    })
+    // Position toolbar near selection
+    const range = sel.getRangeAt(0)
+    const rect = range.getBoundingClientRect()
+    setToolbar(true, {
+      x: rect.left + rect.width / 2,
+      y: rect.top - 40,
+    })
+  }, [content, contentId, setSelection, clearSelection, setToolbar])
+
+  const handleSelectionAsk = useCallback(() => {
+    // Clear selection visual but keep data in store for the chat
+    window.getSelection()?.removeAllRanges()
+    setToolbar(false)
+  }, [setToolbar])
+
   const label = isDoc ? (
     <span className="text-[10px] px-1.5 py-0.5 rounded-full font-medium"
       style={{ background: 'var(--accent-light)', color: 'var(--accent)' }}>
@@ -171,8 +212,30 @@ export default function ContentViewer() {
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-8 py-6">
-        <div className="max-w-3xl mx-auto">
+      <div className="flex-1 overflow-y-auto px-8 py-6" onMouseUp={handleMouseUp}>
+        <div className="max-w-3xl mx-auto relative" ref={contentRef}>
+          {/* Floating selection toolbar */}
+          {showToolbar && (
+            <div
+              className="fixed z-50 animate-fade-in"
+              style={{
+                left: toolbarPos.x,
+                top: toolbarPos.y,
+                transform: 'translate(-50%, 0)',
+              }}
+            >
+              <button
+                onClick={handleSelectionAsk}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium shadow-lg smooth-transition hover:opacity-90"
+                style={{ background: 'var(--accent)', color: '#fff' }}
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                </svg>
+                基于选中提问
+              </button>
+            </div>
+          )}
           {isEditing ? (
             <textarea value={editContent} onChange={(e) => setEditContent(e.target.value)}
               className="w-full h-[calc(100vh-120px)] resize-none rounded-xl p-4 text-sm outline-none leading-relaxed"

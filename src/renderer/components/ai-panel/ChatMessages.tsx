@@ -3,6 +3,7 @@ import { useChatStore } from '@/stores/chatStore'
 import { useDocumentStore } from '@/stores/documentStore'
 import { useNotesStore } from '@/stores/notesStore'
 import { useDiffStore } from '@/stores/diffStore'
+import { useTextSelectionStore } from '@/stores/textSelectionStore'
 import MarkdownRenderer from '@/components/viewer/MarkdownRenderer'
 import EmptyState from '@/components/common/EmptyState'
 
@@ -141,8 +142,17 @@ function ActionButtons({ content }: { content: string }) {
   const handleApplyToDoc = useCallback(() => {
     if (!currentDocumentId) return
     const doc = documents.find((d) => d.id === currentDocumentId)
-    const oldContent = doc?.content || ''
-    showDiff(oldContent, content, 'document', `文档差异对比`)
+    if (!doc) return
+
+    const textSel = useTextSelectionStore.getState().selection
+    if (textSel && textSel.contentId === currentDocumentId) {
+      // Targeted replacement: only replace the selected text
+      const newFull = textSel.fullContent.slice(0, textSel.startIndex) + content + textSel.fullContent.slice(textSel.endIndex)
+      showDiff(textSel.fullContent, newFull, 'document', `选中位置替换 (${textSel.text.length}字 → ${content.length}字)`)
+    } else {
+      // Full document replacement
+      showDiff(doc.content, content, 'document', `文档差异对比`)
+    }
   }, [currentDocumentId, documents, content, showDiff])
 
   const handleApplyToNote = useCallback(() => {

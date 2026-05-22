@@ -5,6 +5,7 @@ import { getMessages, saveMessage, deleteMessages } from '@/db/database'
 import { useDocumentStore } from './documentStore'
 import { streamChat, hasApiKey, regenerateNote } from '@/services/aiService'
 import { useNotesStore } from './notesStore'
+import { useTextSelectionStore } from './textSelectionStore'
 
 interface ChatState {
   messages: ChatMessage[]
@@ -64,6 +65,19 @@ export const useChatStore = create<ChatState>((set, get) => ({
       return
     }
 
+    // Check for text selection to use as context
+    const textSel = useTextSelectionStore.getState().selection
+    let docContent: string
+    if (textSel && textSel.contentId === currentDocumentId) {
+      // Use selected text + surrounding context
+      const ctx = textSel.fullContent
+      const before = ctx.slice(Math.max(0, textSel.startIndex - 200), textSel.startIndex)
+      const after = ctx.slice(textSel.endIndex, Math.min(ctx.length, textSel.endIndex + 200))
+      docContent = `用户选中了文档中的以下片段（前后各保留200字上下文）：\n\n...${before}\n>>>${textSel.text}<<<\n${after}...\n\n（用户可能要求基于此片段进行问答或编辑）`
+    } else {
+      docContent = document.content
+    }
+
     const history = currentMessages.map((m) => ({
       role: m.role as 'user' | 'assistant',
       content: m.content,
@@ -83,7 +97,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       flushTimer = null
     }
 
-    await streamChat(document.content, history, content, {
+    await streamChat(docContent, history, content, {
       onToken: (token) => {
         tokenBuffer += token
         if (!flushTimer) {
