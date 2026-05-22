@@ -3,7 +3,7 @@ import ThreeColumnLayout from '@/components/layout/ThreeColumnLayout'
 import { useDocumentStore } from '@/stores/documentStore'
 import { useChatStore } from '@/stores/chatStore'
 import { useNotesStore } from '@/stores/notesStore'
-import { PROVIDERS, hasApiKey } from '@/services/aiService'
+import { PROVIDERS, PROVIDER_ORDER, hasApiKey } from '@/services/aiService'
 import { saveApiKey, getApiKey, saveProviderConfig, saveModel, getProvider, getModel } from '@/services/apiKeyStore'
 import StarMapPanel from '@/components/starmap/StarMapPanel'
 import type { AIProvider } from '@/types'
@@ -328,14 +328,19 @@ export default function App() {
           onClick={() => setShowSettings(false)}
         >
           <div
-            className="w-[480px] rounded-2xl p-6 shadow-lg max-h-[80vh] overflow-y-auto"
+            className="w-[520px] rounded-2xl p-6 shadow-lg max-h-[85vh] overflow-y-auto"
             style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)' }}
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between mb-5">
-              <h2 className="text-base font-semibold" style={{ color: 'var(--text-primary)' }}>
-                设置
-              </h2>
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h2 className="text-base font-semibold" style={{ color: 'var(--text-primary)' }}>
+                  选择 AI 服务
+                </h2>
+                <p className="text-xs mt-0.5" style={{ color: 'var(--text-tertiary)' }}>
+                  选择一个提供商并填入 API Key 即可开始使用
+                </p>
+              </div>
               <button
                 onClick={() => setShowSettings(false)}
                 className="w-6 h-6 rounded-full flex items-center justify-center smooth-transition"
@@ -347,66 +352,78 @@ export default function App() {
               </button>
             </div>
 
-            {/* Provider selector */}
-            <div className="mb-5">
-              <label className="text-xs font-medium mb-2 block" style={{ color: 'var(--text-secondary)' }}>
-                AI 提供商
-              </label>
-              <div className="flex gap-1.5 flex-wrap">
-                {(Object.keys(PROVIDERS) as AIProvider[]).map((p) => (
+            {/* Provider cards */}
+            <div className="grid grid-cols-3 gap-2 mb-4">
+              {PROVIDER_ORDER.map((p) => {
+                const cfg = PROVIDERS[p]
+                const isActive = activeProvider === p
+                const hasKey = !!getApiKey(p)
+                return (
                   <button
                     key={p}
                     onClick={() => handleSwitchProvider(p)}
-                    className="px-3 py-1.5 rounded-lg text-xs font-medium smooth-transition"
+                    className="text-left p-3 rounded-xl smooth-transition"
                     style={{
-                      background: activeProvider === p ? 'var(--accent)' : 'var(--input-bg)',
-                      color: activeProvider === p ? '#fff' : 'var(--text-secondary)',
+                      background: isActive ? 'var(--accent-light)' : 'var(--input-bg)',
+                      border: isActive ? '1.5px solid var(--accent)' : '1px solid var(--border-color)',
                     }}
                   >
-                    {PROVIDERS[p].name}
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <span className="text-xs font-semibold" style={{ color: isActive ? 'var(--accent)' : 'var(--text-primary)' }}>
+                        {cfg.name}
+                      </span>
+                      {hasKey && (
+                        <span className="w-1.5 h-1.5 rounded-full" style={{ background: '#22c55e' }} />
+                      )}
+                    </div>
+                    <p className="text-[10px] leading-tight" style={{ color: 'var(--text-tertiary)' }}>
+                      {cfg.desc}
+                    </p>
                   </button>
-                ))}
-              </div>
+                )
+              })}
             </div>
 
-            {/* API Key */}
-            <div className="mb-4">
-              <label className="text-xs font-medium mb-1.5 block" style={{ color: 'var(--text-secondary)' }}>
-                API Key {keyConfigured && <span className="text-[10px]" style={{ color: '#22c55e' }}>(已配置)</span>}
-              </label>
-              <div className="flex gap-2">
-                <input
-                  type="password"
-                  value={apiKeyInput}
-                  onChange={(e) => {
-                    setApiKeyInput(e.target.value)
-                    setSettingsMsg(null)
-                  }}
-                  placeholder={PROVIDERS[activeProvider].requiresAuth ? '输入 API Key...' : '无需认证'}
-                  className="flex-1 rounded-lg px-3 py-2 text-sm outline-none"
-                  style={{
-                    background: 'var(--input-bg)',
-                    color: 'var(--text-primary)',
-                    border: '1px solid var(--border-color)',
-                  }}
-                />
-                {keyConfigured && (
-                  <button
-                    onClick={handleClearKey}
-                    className="px-3 py-2 rounded-lg text-xs smooth-transition"
-                    style={{ color: '#ef4444', background: 'rgba(239,68,68,0.1)' }}
-                  >
-                    清除
-                  </button>
-                )}
+            {/* API Key — only for providers that need auth */}
+            {PROVIDERS[activeProvider].requiresAuth && (
+              <div className="mb-4">
+                <label className="text-xs font-medium mb-1.5 block" style={{ color: 'var(--text-secondary)' }}>
+                  API Key
+                  {keyConfigured && (
+                    <span className="ml-1.5 text-[10px]" style={{ color: '#22c55e' }}>已配置</span>
+                  )}
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="password"
+                    value={apiKeyInput}
+                    onChange={(e) => { setApiKeyInput(e.target.value); setSettingsMsg(null) }}
+                    placeholder={`粘贴 ${PROVIDERS[activeProvider].name} 的 API Key`}
+                    className="flex-1 rounded-lg px-3 py-2 text-sm outline-none"
+                    style={{
+                      background: 'var(--input-bg)',
+                      color: 'var(--text-primary)',
+                      border: '1px solid var(--border-color)',
+                    }}
+                  />
+                  {keyConfigured && (
+                    <button
+                      onClick={handleClearKey}
+                      className="px-3 py-2 rounded-lg text-xs smooth-transition"
+                      style={{ color: '#ef4444', background: 'rgba(239,68,68,0.1)' }}
+                    >
+                      清除
+                    </button>
+                  )}
+                </div>
               </div>
-            </div>
+            )}
 
-            {/* Model */}
+            {/* Model selector — all providers */}
             {PROVIDERS[activeProvider].models.length > 0 && (
               <div className="mb-4">
                 <label className="text-xs font-medium mb-1.5 block" style={{ color: 'var(--text-secondary)' }}>
-                  模型
+                  模型选择
                 </label>
                 <select
                   value={selectedModel}
@@ -419,100 +436,70 @@ export default function App() {
                   }}
                 >
                   {PROVIDERS[activeProvider].models.map((m) => (
-                    <option key={m.id} value={m.id}>
-                      {m.name}
-                    </option>
+                    <option key={m.id} value={m.id}>{m.name}</option>
                   ))}
                 </select>
               </div>
             )}
 
-            {/* Custom URL */}
+            {/* Custom: URL + model ID */}
             {activeProvider === 'custom' && (
-              <div className="mb-4">
-                <label className="text-xs font-medium mb-1.5 block" style={{ color: 'var(--text-secondary)' }}>
-                  自定义 API URL (OpenAI 兼容)
-                </label>
-                <input
-                  type="text"
-                  value={customURL}
-                  onChange={(e) => setCustomURL(e.target.value)}
-                  placeholder="https://api.openai.com/v1/chat/completions"
-                  className="w-full rounded-lg px-3 py-2 text-sm outline-none"
-                  style={{
-                    background: 'var(--input-bg)',
-                    color: 'var(--text-primary)',
-                    border: '1px solid var(--border-color)',
-                  }}
-                />
-                {activeProvider === 'custom' && !customURL && (
-                  <div className="mb-4">
-                    <label className="text-xs font-medium mb-1.5 block" style={{ color: 'var(--text-secondary)' }}>
-                      模型 ID
-                    </label>
-                    <input
-                      type="text"
-                      value={selectedModel}
-                      onChange={(e) => setSelectedModel(e.target.value)}
-                      placeholder="gpt-4o"
-                      className="w-full rounded-lg px-3 py-2 text-sm outline-none"
-                      style={{
-                        background: 'var(--input-bg)',
-                        color: 'var(--text-primary)',
-                        border: '1px solid var(--border-color)',
-                      }}
-                    />
-                  </div>
-                )}
+              <>
+                <div className="mb-3">
+                  <label className="text-xs font-medium mb-1 block" style={{ color: 'var(--text-secondary)' }}>
+                    API URL (OpenAI 兼容)
+                  </label>
+                  <input
+                    type="text" value={customURL}
+                    onChange={(e) => setCustomURL(e.target.value)}
+                    placeholder="https://api.openai.com/v1/chat/completions"
+                    className="w-full rounded-lg px-3 py-2 text-sm outline-none"
+                    style={{ background: 'var(--input-bg)', color: 'var(--text-primary)', border: '1px solid var(--border-color)' }}
+                  />
+                </div>
+                <div className="mb-4">
+                  <label className="text-xs font-medium mb-1 block" style={{ color: 'var(--text-secondary)' }}>
+                    模型 ID
+                  </label>
+                  <input
+                    type="text" value={selectedModel}
+                    onChange={(e) => setSelectedModel(e.target.value)}
+                    placeholder="gpt-4o"
+                    className="w-full rounded-lg px-3 py-2 text-sm outline-none"
+                    style={{ background: 'var(--input-bg)', color: 'var(--text-primary)', border: '1px solid var(--border-color)' }}
+                  />
+                </div>
+              </>
+            )}
+
+            {/* Ollama hint */}
+            {activeProvider === 'ollama' && (
+              <div className="mb-4 p-3 rounded-lg text-xs" style={{ background: 'var(--accent-light)', color: 'var(--accent)' }}>
+                使用前请确保已安装并启动 <a href="https://ollama.com" target="_blank" className="underline">Ollama</a>，
+                并已拉取对应模型（如 <code>ollama pull qwen3</code>）。无需 API Key。
               </div>
             )}
 
-            {/* Custom model ID for custom provider */}
-            {activeProvider === 'custom' && customURL && (
-              <div className="mb-4">
-                <label className="text-xs font-medium mb-1.5 block" style={{ color: 'var(--text-secondary)' }}>
-                  模型 ID
-                </label>
-                <input
-                  type="text"
-                  value={selectedModel}
-                  onChange={(e) => setSelectedModel(e.target.value)}
-                  placeholder="gpt-4o"
-                  className="w-full rounded-lg px-3 py-2 text-sm outline-none"
-                  style={{
-                    background: 'var(--input-bg)',
-                    color: 'var(--text-primary)',
-                    border: '1px solid var(--border-color)',
-                  }}
-                />
-              </div>
+            {/* Save button */}
+            <button
+              onClick={handleSaveSettings}
+              className="w-full py-2.5 rounded-xl text-sm font-semibold smooth-transition hover:opacity-90 mb-5"
+              style={{ background: 'var(--accent)', color: '#fff' }}
+            >
+              保存配置
+            </button>
+            {settingsMsg && (
+              <p className="text-xs mb-4 text-center" style={{ color: settingsMsg.type === 'success' ? '#22c55e' : '#ef4444' }}>
+                {settingsMsg.text}
+              </p>
             )}
-
-            {/* Save */}
-            <div className="mb-5">
-              <button
-                onClick={handleSaveSettings}
-                className="w-full py-2 rounded-lg text-sm font-medium smooth-transition"
-                style={{ background: 'var(--accent)', color: '#fff' }}
-              >
-                保存设置
-              </button>
-              {settingsMsg && (
-                <p
-                  className="text-xs mt-1.5 text-center"
-                  style={{ color: settingsMsg.type === 'success' ? '#22c55e' : '#ef4444' }}
-                >
-                  {settingsMsg.text}
-                </p>
-              )}
-            </div>
 
             {/* Theme */}
-            <div>
-              <label className="text-xs font-medium mb-1.5 block" style={{ color: 'var(--text-secondary)' }}>
+            <div style={{ borderTop: '1px solid var(--border-color)' }} className="pt-4">
+              <label className="text-xs font-medium mb-2 block" style={{ color: 'var(--text-secondary)' }}>
                 外观
               </label>
-              <div className="flex gap-1.5">
+              <div className="flex gap-2">
                 {(['light', 'dark', 'system'] as Theme[]).map((t) => (
                   <button
                     key={t}

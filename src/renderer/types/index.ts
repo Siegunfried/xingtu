@@ -45,11 +45,12 @@ export interface GraphNode {
   vz: number
 }
 
-export type AIProvider = 'claude' | 'deepseek' | 'openai' | 'custom'
+export type AIProvider = 'claude' | 'deepseek' | 'openai' | 'qwen' | 'kimi' | 'glm' | 'siliconflow' | 'ollama' | 'custom'
 
 export interface ProviderConfig {
   id: AIProvider
   name: string
+  desc: string
   baseURL: string
   models: { id: string; name: string }[]
   defaultModel: string

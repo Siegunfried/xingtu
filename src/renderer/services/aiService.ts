@@ -17,12 +17,15 @@ const SYSTEM_PROMPT = `你是一个专业的 AI 阅读助手。你的职责是�
 export const PROVIDERS: Record<AIProvider, ProviderConfig> = {
   claude: {
     id: 'claude',
-    name: 'Claude (Anthropic)',
+    name: 'Claude',
+    desc: 'Anthropic 出品，长上下文理解力强',
     baseURL: 'https://api.anthropic.com/v1/messages',
     models: [
-      { id: 'claude-sonnet-4-6', name: 'Claude Sonnet 4.6' },
-      { id: 'claude-opus-4-7', name: 'Claude Opus 4.7' },
-      { id: 'claude-haiku-4-5-20251001', name: 'Claude Haiku 4.5' },
+      { id: 'claude-sonnet-4-6', name: 'Sonnet 4.6' },
+      { id: 'claude-opus-4-7', name: 'Opus 4.7' },
+      { id: 'claude-haiku-4-5-20251001', name: 'Haiku 4.5' },
+      { id: 'claude-sonnet-4-5-20250915', name: 'Sonnet 4.5' },
+      { id: 'claude-opus-4-5', name: 'Opus 4.5' },
     ],
     defaultModel: 'claude-sonnet-4-6',
     requiresAuth: true,
@@ -30,6 +33,7 @@ export const PROVIDERS: Record<AIProvider, ProviderConfig> = {
   deepseek: {
     id: 'deepseek',
     name: 'DeepSeek',
+    desc: '国产高性价比，推理能力强',
     baseURL: 'https://api.deepseek.com/v1/chat/completions',
     models: [
       { id: 'deepseek-chat', name: 'DeepSeek V3' },
@@ -41,17 +45,99 @@ export const PROVIDERS: Record<AIProvider, ProviderConfig> = {
   openai: {
     id: 'openai',
     name: 'OpenAI',
+    desc: 'GPT 系列，综合能力强',
     baseURL: 'https://api.openai.com/v1/chat/completions',
     models: [
       { id: 'gpt-4o', name: 'GPT-4o' },
       { id: 'gpt-4o-mini', name: 'GPT-4o Mini' },
+      { id: 'gpt-4.1', name: 'GPT-4.1' },
+      { id: 'gpt-4.1-mini', name: 'GPT-4.1 Mini' },
+      { id: 'o3', name: 'o3' },
+      { id: 'o4-mini', name: 'o4 Mini' },
     ],
     defaultModel: 'gpt-4o',
     requiresAuth: true,
   },
+  qwen: {
+    id: 'qwen',
+    name: '通义千问',
+    desc: '阿里云出品，中文理解出色',
+    baseURL: 'https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions',
+    models: [
+      { id: 'qwen-turbo', name: 'Qwen Turbo' },
+      { id: 'qwen-plus', name: 'Qwen Plus' },
+      { id: 'qwen-max', name: 'Qwen Max' },
+      { id: 'qwen3-235b-a22b', name: 'Qwen3 235B' },
+    ],
+    defaultModel: 'qwen-plus',
+    requiresAuth: true,
+  },
+  kimi: {
+    id: 'kimi',
+    name: 'Kimi (月之暗面)',
+    desc: '超长上下文，适合长文档阅读',
+    baseURL: 'https://api.moonshot.cn/v1/chat/completions',
+    models: [
+      { id: 'moonshot-v1-8k', name: 'Moonshot 8K' },
+      { id: 'moonshot-v1-32k', name: 'Moonshot 32K' },
+      { id: 'moonshot-v1-128k', name: 'Moonshot 128K' },
+      { id: 'kimi-latest', name: 'Kimi Latest' },
+    ],
+    defaultModel: 'moonshot-v1-32k',
+    requiresAuth: true,
+  },
+  glm: {
+    id: 'glm',
+    name: '智谱 GLM',
+    desc: '清华系，多模态能力强',
+    baseURL: 'https://open.bigmodel.cn/api/paas/v4/chat/completions',
+    models: [
+      { id: 'glm-4-plus', name: 'GLM-4 Plus' },
+      { id: 'glm-4', name: 'GLM-4' },
+      { id: 'glm-4-flash', name: 'GLM-4 Flash' },
+      { id: 'glm-4-air', name: 'GLM-4 Air' },
+    ],
+    defaultModel: 'glm-4-flash',
+    requiresAuth: true,
+  },
+  siliconflow: {
+    id: 'siliconflow',
+    name: '硅基流动',
+    desc: '模型聚合平台，选择丰富',
+    baseURL: 'https://api.siliconflow.cn/v1/chat/completions',
+    models: [
+      { id: 'deepseek-ai/DeepSeek-V3', name: 'DeepSeek V3' },
+      { id: 'deepseek-ai/DeepSeek-R1', name: 'DeepSeek R1' },
+      { id: 'Qwen/Qwen3-235B-A22B', name: 'Qwen3 235B' },
+      { id: 'Pro/Qwen/Qwen3-235B-A22B', name: 'Qwen3 235B (Pro)' },
+      { id: 'Qwen/Qwen2.5-72B-Instruct', name: 'Qwen2.5 72B' },
+      { id: 'meta-llama/Meta-Llama-3.1-405B-Instruct', name: 'Llama 3.1 405B' },
+      { id: 'Pro/meta-llama/Meta-Llama-4-Maverick-17B-128E-Instruct', name: 'Llama 4 Maverick' },
+      { id: 'THUDM/GLM-4-9B-Chat', name: 'GLM-4 9B' },
+      { id: 'internlm/internlm3-8b-instruct', name: 'InternLM3 8B' },
+    ],
+    defaultModel: 'deepseek-ai/DeepSeek-V3',
+    requiresAuth: true,
+  },
+  ollama: {
+    id: 'ollama',
+    name: 'Ollama (本地)',
+    desc: '本地运行，隐私安全，免费',
+    baseURL: 'http://localhost:11434/v1/chat/completions',
+    models: [
+      { id: 'llama3.2', name: 'Llama 3.2' },
+      { id: 'qwen3', name: 'Qwen3' },
+      { id: 'deepseek-r1:8b', name: 'DeepSeek R1 8B' },
+      { id: 'mistral', name: 'Mistral' },
+      { id: 'gemma3', name: 'Gemma 3' },
+    ],
+    defaultModel: 'qwen3',
+    requiresAuth: false,
+  },
   custom: {
     id: 'custom',
-    name: '自定义 (OpenAI 兼容)',
+    name: '自定义',
+    desc: '任意 OpenAI 兼容 API',
     baseURL: '',
     models: [],
     defaultModel: '',
@@ -59,13 +145,18 @@ export const PROVIDERS: Record<AIProvider, ProviderConfig> = {
   },
 }
 
+// Provider display order
+export const PROVIDER_ORDER: AIProvider[] = [
+  'claude', 'deepseek', 'openai', 'qwen', 'kimi', 'glm', 'siliconflow', 'ollama', 'custom',
+]
+
 interface StreamCallbacks {
   onToken: (token: string) => void
   onDone: (fullText: string) => void
   onError: (error: Error) => void
 }
 
-const MAX_CONTEXT_LENGTH = 30000
+const MAX_CONTEXT_LENGTH = 50000
 
 function truncateDocument(content: string): string {
   if (content.length <= MAX_CONTEXT_LENGTH) return content
@@ -84,9 +175,10 @@ export function getCurrentConfig(): {
   baseURL: string
 } {
   const provider = (localStorage.getItem('xingtu-provider') || 'claude') as AIProvider
-  const model = localStorage.getItem('xingtu-model') || PROVIDERS[provider].defaultModel
+  const cfg = PROVIDERS[provider]
+  const model = localStorage.getItem('xingtu-model') || cfg.defaultModel
   const key = localStorage.getItem(`xingtu-key-${provider}`) || ''
-  const baseURL = localStorage.getItem(`xingtu-url-${provider}`) || PROVIDERS[provider].baseURL
+  const baseURL = localStorage.getItem(`xingtu-url-${provider}`) || cfg.baseURL
   return { provider, model, apiKey: key, baseURL }
 }
 
@@ -97,8 +189,8 @@ export async function streamChat(
   callbacks: StreamCallbacks
 ): Promise<void> {
   const config = getCurrentConfig()
-  if (!config.apiKey) {
-    callbacks.onError(new Error('请先在设置中配置 API Key'))
+  if (!config.apiKey && config.provider !== 'ollama') {
+    callbacks.onError(new Error('请先配置 API Key'))
     return
   }
 
@@ -140,16 +232,12 @@ async function streamClaude(
         stream: true,
       }),
     })
-
     if (!res.ok) {
       const err = await res.text()
-      throw new Error(`Claude API 错误 (${res.status}): ${err}`)
+      throw new Error(`API 错误 (${res.status}): ${err.slice(0, 300)}`)
     }
-
     await readSSEStream(res, (data) => {
-      if (data.type === 'content_block_delta' && data.delta?.text) {
-        return data.delta.text
-      }
+      if (data.type === 'content_block_delta' && data.delta?.text) return data.delta.text
       return null
     }, callbacks)
   } catch (error) {
@@ -171,12 +259,16 @@ async function streamOpenAICompatible(
   ]
 
   try {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    }
+    if (config.apiKey) {
+      headers['Authorization'] = `Bearer ${config.apiKey}`
+    }
+
     const res = await fetch(config.baseURL, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${config.apiKey}`,
-      },
+      headers,
       body: JSON.stringify({
         model: config.model,
         max_tokens: 4096,
@@ -184,12 +276,10 @@ async function streamOpenAICompatible(
         stream: true,
       }),
     })
-
     if (!res.ok) {
       const err = await res.text()
-      throw new Error(`API 错误 (${res.status}): ${err}`)
+      throw new Error(`API 错误 (${res.status}): ${err.slice(0, 300)}`)
     }
-
     await readSSEStream(res, (data) => {
       return data.choices?.[0]?.delta?.content || null
     }, callbacks)
@@ -213,17 +303,14 @@ async function readSSEStream(
   while (true) {
     const { done, value } = await reader.read()
     if (done) break
-
     buffer += decoder.decode(value, { stream: true })
     const lines = buffer.split('\n')
     buffer = lines.pop() || ''
-
     for (const line of lines) {
       const trimmed = line.trim()
       if (!trimmed.startsWith('data: ')) continue
       const data = trimmed.slice(6)
       if (data === '[DONE]') continue
-
       try {
         const json = JSON.parse(data)
         const text = extract(json)
@@ -231,11 +318,8 @@ async function readSSEStream(
           fullText += text
           callbacks.onToken(text)
         }
-      } catch {
-        // skip unparseable
-      }
+      } catch { /* skip */ }
     }
   }
-
   callbacks.onDone(fullText)
 }
