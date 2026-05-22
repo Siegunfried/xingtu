@@ -5,9 +5,7 @@ import type { FileEntry } from '@/types'
 
 const DOC_EXTS = new Set(['pdf', 'docx', 'txt', 'md'])
 
-interface Props { onOpenStarMap: () => void }
-
-export default function FileTree({ onOpenStarMap }: Props) {
+export default function FileTree() {
   const workspacePath = useWorkspaceStore((s) => s.workspacePath)
   const rootEntries = useWorkspaceStore((s) => s.rootEntries)
   const openWorkspace = useWorkspaceStore((s) => s.openWorkspace)
@@ -177,18 +175,6 @@ export default function FileTree({ onOpenStarMap }: Props) {
         ))}
       </div>
 
-      {/* Star map button */}
-      <div className="flex-shrink-0 px-3 py-2" style={{ borderTop: '1px solid var(--border-color)' }}>
-        <button onClick={onOpenStarMap}
-          className="flex items-center gap-2 w-full px-3 py-2 rounded-lg text-xs smooth-transition hover:opacity-80"
-          style={{ background: 'var(--accent-light)', color: 'var(--accent)' }}>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-            <circle cx="12" cy="12" r="3" /><circle cx="4" cy="4" r="1" /><circle cx="20" cy="6" r="1.2" /><circle cx="6" cy="18" r="1" /><circle cx="18" cy="16" r="0.8" />
-            <line x1="12" y1="9" x2="20" y2="6" /><line x1="12" y1="9" x2="4" y2="4" /><line x1="13.5" y1="13.5" x2="6" y2="18" /><line x1="13.5" y1="13.5" x2="18" y2="16" />
-          </svg>
-          打开知识星图
-        </button>
-      </div>
     </div>
   )
 }
