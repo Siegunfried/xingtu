@@ -6,6 +6,9 @@ import { useNotesStore } from '@/stores/notesStore'
 import { PROVIDERS, PROVIDER_ORDER, hasApiKey } from '@/services/aiService'
 import { saveApiKey, getApiKey, saveProviderConfig, saveModel, getProvider, getModel } from '@/services/apiKeyStore'
 import StarMapPanel from '@/components/starmap/StarMapPanel'
+import DiffPanel from '@/components/diff/DiffPanel'
+import { useDiffStore } from '@/stores/diffStore'
+import type { TreeSelection } from '@/components/tree/FileTree'
 import type { AIProvider } from '@/types'
 
 type Theme = 'light' | 'dark' | 'system'
@@ -13,10 +16,20 @@ type Theme = 'light' | 'dark' | 'system'
 export default function App() {
   const loadDocuments = useDocumentStore((s) => s.loadDocuments)
   const importDocument = useDocumentStore((s) => s.importDocument)
+  const updateDocument = useDocumentStore((s) => s.updateDocument)
   const error = useDocumentStore((s) => s.error)
   const clearError = useDocumentStore((s) => s.clearError)
   const loadMessages = useChatStore((s) => s.loadMessages)
   const loadNote = useNotesStore((s) => s.loadNote)
+  const updateNoteContent = useNotesStore((s) => s.updateNoteContent)
+  const setCurrentDocumentId = useDocumentStore((s) => s.setCurrentDocumentId)
+
+  // File tree selection
+  const [selection, setSelection] = useState<TreeSelection | null>(null)
+
+  // Diff panel
+  const pendingDiff = useDiffStore((s) => s.pendingDiff)
+  const clearDiff = useDiffStore((s) => s.clearDiff)
 
   // Theme
   const [theme, setTheme] = useState<Theme>(() => {
@@ -133,6 +146,31 @@ export default function App() {
     }
   }, [importDocument, loadMessages, loadNote])
 
+  // File tree selection handler
+  const handleTreeSelect = useCallback((sel: TreeSelection) => {
+    setSelection(sel)
+    setCurrentDocumentId(sel.documentId)
+    loadMessages(sel.documentId)
+    loadNote(sel.documentId)
+  }, [setCurrentDocumentId, loadMessages, loadNote])
+
+  // Diff accept/reject
+  const handleDiffAccept = useCallback(async () => {
+    if (!pendingDiff) return
+    const { newContent, target } = pendingDiff
+    if (target === 'document') {
+      const docId = selection?.documentId
+      if (docId) await updateDocument(docId, newContent)
+    } else if (target === 'notes') {
+      await updateNoteContent(newContent)
+    }
+    clearDiff()
+  }, [pendingDiff, selection, updateDocument, updateNoteContent, clearDiff])
+
+  const handleDiffReject = useCallback(() => {
+    clearDiff()
+  }, [clearDiff])
+
   // Settings handlers
   const handleSwitchProvider = (p: AIProvider) => {
     setActiveProvider(p)
@@ -187,7 +225,7 @@ export default function App() {
       {showStarMap ? (
         <StarMapPanel onClose={() => setShowStarMap(false)} />
       ) : (
-        <ThreeColumnLayout />
+        <ThreeColumnLayout selection={selection} onSelect={handleTreeSelect} />
       )}
 
       {/* Drag overlay */}
@@ -301,6 +339,19 @@ export default function App() {
           </svg>
         </button>
       </div>
+
+      {/* Diff Panel */}
+      {pendingDiff && (
+        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 w-[700px] max-w-[90vw] shadow-2xl">
+          <DiffPanel
+            oldContent={pendingDiff.oldContent}
+            newContent={pendingDiff.newContent}
+            title={pendingDiff.title}
+            onAccept={handleDiffAccept}
+            onReject={handleDiffReject}
+          />
+        </div>
+      )}
 
       {/* Error Toast */}
       {error && (

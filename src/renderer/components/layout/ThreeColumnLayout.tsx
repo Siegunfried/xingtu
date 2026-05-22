@@ -1,22 +1,30 @@
 import React from 'react'
-import Sidebar from '@/components/sidebar/Sidebar'
-import DocumentViewer from '@/components/viewer/DocumentViewer'
+import FileTree from '@/components/tree/FileTree'
+import ContentViewer from '@/components/viewer/ContentViewer'
 import AIPanel from '@/components/ai-panel/AIPanel'
+import type { TreeSelection } from '@/components/tree/FileTree'
 
-export default function ThreeColumnLayout() {
+interface ThreeColumnLayoutProps {
+  selection: TreeSelection | null
+  onSelect: (sel: TreeSelection) => void
+}
+
+export default function ThreeColumnLayout({ selection, onSelect }: ThreeColumnLayoutProps) {
   return (
     <div className="flex h-screen w-screen overflow-hidden">
-      {/* Left sidebar - 260px */}
-      <div className="w-[260px] flex-shrink-0 h-full">
-        <Sidebar />
+      {/* Left sidebar - File tree */}
+      <div className="w-[240px] flex-shrink-0 h-full" style={{
+        borderRight: '1px solid var(--border-color)',
+      }}>
+        <FileTree onSelect={onSelect} selectedId={selection?.id || null} />
       </div>
 
-      {/* Center - document viewer */}
+      {/* Center - Content viewer */}
       <div className="flex-1 min-w-0 h-full">
-        <DocumentViewer />
+        <ContentViewer selection={selection} />
       </div>
 
-      {/* Right - AI panel - 380px */}
+      {/* Right - AI panel */}
       <div className="w-[380px] flex-shrink-0 h-full">
         <AIPanel />
       </div>

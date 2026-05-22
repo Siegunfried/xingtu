@@ -2,6 +2,7 @@ import React, { useRef, useEffect, useState, useCallback } from 'react'
 import { useChatStore } from '@/stores/chatStore'
 import { useDocumentStore } from '@/stores/documentStore'
 import { useNotesStore } from '@/stores/notesStore'
+import { useDiffStore } from '@/stores/diffStore'
 import MarkdownRenderer from '@/components/viewer/MarkdownRenderer'
 import EmptyState from '@/components/common/EmptyState'
 
@@ -132,26 +133,23 @@ function ChatBubble({
 
 function ActionButtons({ content }: { content: string }) {
   const currentDocumentId = useDocumentStore((s) => s.currentDocumentId)
-  const updateDocument = useDocumentStore((s) => s.updateDocument)
-  const updateNoteContent = useNotesStore((s) => s.updateNoteContent)
+  const documents = useDocumentStore((s) => s.documents)
   const currentNote = useNotesStore((s) => s.currentNote)
+  const showDiff = useDiffStore((s) => s.showDiff)
   const [copied, setCopied] = useState(false)
-  const [appliedDoc, setAppliedDoc] = useState(false)
-  const [appliedNote, setAppliedNote] = useState(false)
 
-  const handleApplyToDoc = useCallback(async () => {
+  const handleApplyToDoc = useCallback(() => {
     if (!currentDocumentId) return
-    await updateDocument(currentDocumentId, content)
-    setAppliedDoc(true)
-    setTimeout(() => setAppliedDoc(false), 2000)
-  }, [currentDocumentId, content, updateDocument])
+    const doc = documents.find((d) => d.id === currentDocumentId)
+    const oldContent = doc?.content || ''
+    showDiff(oldContent, content, 'document', `文档差异对比`)
+  }, [currentDocumentId, documents, content, showDiff])
 
-  const handleApplyToNote = useCallback(async () => {
+  const handleApplyToNote = useCallback(() => {
     if (!currentNote) return
-    await updateNoteContent(content)
-    setAppliedNote(true)
-    setTimeout(() => setAppliedNote(false), 2000)
-  }, [currentNote, content, updateNoteContent])
+    const oldContent = currentNote.content || ''
+    showDiff(oldContent, content, 'notes', `笔记差异对比`)
+  }, [currentNote, content, showDiff])
 
   const handleCopy = useCallback(async () => {
     await navigator.clipboard.writeText(content)
@@ -168,9 +166,9 @@ function ActionButtons({ content }: { content: string }) {
             <polyline points="14 2 14 8 20 8" />
           </svg>
         }
-        label={appliedDoc ? '已应用' : '应用到文档'}
+        label="应用到文档"
         onClick={handleApplyToDoc}
-        active={appliedDoc}
+        active={false}
       />
       <ActionBtn
         icon={
@@ -180,9 +178,9 @@ function ActionButtons({ content }: { content: string }) {
             <line x1="6" y1="20" x2="6" y2="16" />
           </svg>
         }
-        label={appliedNote ? '已更新' : '应用到笔记'}
+        label="应用到笔记"
         onClick={handleApplyToNote}
-        active={appliedNote}
+        active={false}
       />
       <ActionBtn
         icon={
