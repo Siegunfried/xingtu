@@ -106,7 +106,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
           isLoading: false, streamingContent: '', isStreaming: false,
         }))
 
-        // Generate professional note from conversation
+        // Generate professional note and save
         const ws = useWorkspaceStore.getState()
         const parentPath = ws.selectedFilePath || ws.selectedNotePath
         if (parentPath && fullText) {
@@ -116,8 +116,13 @@ export const useChatStore = create<ChatState>((set, get) => ({
             allMessages.map((m) => ({ role: m.role, content: m.content }))
           )
           if (noteContent) {
-            const title = content.length > 30 ? content.slice(0, 30) + '...' : content
-            await ws.createNote(parentPath, title, noteContent)
+            // If there's an active note, append to it. Otherwise create new.
+            if (ws.activeNotePath) {
+              await ws.appendToActiveNote(noteContent)
+            } else {
+              const title = content.length > 30 ? content.slice(0, 30) + '...' : content
+              await ws.createNote(parentPath, title, noteContent)
+            }
           }
         }
       },

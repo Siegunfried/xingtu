@@ -8,6 +8,7 @@ interface WorkspaceState {
   selectedNotePath: string | null
   currentFileContent: FileContent | null
   autoExpandDir: string | null
+  activeNotePath: string | null  // current note being appended to
   isLoading: boolean
 
   openWorkspace: () => Promise<void>
@@ -16,6 +17,8 @@ interface WorkspaceState {
   selectFile: (filePath: string) => Promise<void>
   selectNote: (notePath: string) => Promise<void>
   createNote: (parentFilePath: string, noteName: string, content: string) => Promise<string | null>
+  appendToActiveNote: (content: string) => Promise<boolean>
+  setActiveNote: (path: string | null) => void
   saveCurrentFile: (content: string) => Promise<boolean>
   deleteEntry: (entryPath: string) => Promise<void>
   clearAutoExpand: () => void
@@ -28,6 +31,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
   selectedNotePath: null,
   currentFileContent: null,
   autoExpandDir: null,
+  activeNotePath: null,
   isLoading: false,
 
   openWorkspace: async () => {
@@ -57,9 +61,22 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
       const file = await window.electronAPI.readTextFile(filePath)
       content = file?.content || ''
     }
+    // Find latest note for this document
+    const parentName = filePath.split(/[/\\]/).pop()?.replace(/\.[^.]+$/, '') || ''
+    const noteDir = filePath.substring(0, filePath.lastIndexOf('/') + 1 || filePath.lastIndexOf('\\') + 1) + parentName
+    let activeNote: string | null = null
+    try {
+      const existing = await window.electronAPI.listDir(noteDir)
+      const notes = existing.filter((e) => e.name.match(/^\d{2}-.*\.md$/))
+      if (notes.length > 0) {
+        activeNote = notes[notes.length - 1].path // latest note
+      }
+    } catch { /* no notes yet */ }
+
     set({
       selectedFilePath: filePath,
       selectedNotePath: null,
+      activeNotePath: activeNote,
       currentFileContent: {
         name: filePath.split(/[/\\]/).pop() || '',
         path: filePath,
@@ -97,10 +114,29 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
     const notePath = `${noteDir}/${prefix}-${safeName}.md`
     await window.electronAPI.writeTextFile(notePath, content)
     await get().refreshFiles()
-    // Signal FileTree to auto-expand this directory
-    set({ autoExpandDir: noteDir })
+    set({ autoExpandDir: noteDir, activeNotePath: notePath })
     return notePath
   },
+
+  appendToActiveNote: async (content) => {
+    const { activeNotePath } = get()
+    if (!activeNotePath) return false
+    try {
+      const existing = await window.electronAPI.readTextFile(activeNotePath)
+      const oldContent = existing?.content || ''
+      const separator = '\n\n---\n\n'
+      await window.electronAPI.writeTextFile(activeNotePath, oldContent + separator + content)
+      // Refresh the note content in the viewer if it's selected
+      const { selectedNotePath } = get()
+      if (selectedNotePath === activeNotePath) {
+        const updated = await window.electronAPI.readTextFile(activeNotePath)
+        if (updated) set({ currentFileContent: updated })
+      }
+      return true
+    } catch { return false }
+  },
+
+  setActiveNote: (path) => set({ activeNotePath: path }),
 
   clearAutoExpand: () => set({ autoExpandDir: null }),
 
