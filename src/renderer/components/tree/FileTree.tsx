@@ -140,51 +140,91 @@ export default function FileTree({ onOpenStarMap }: Props) {
 function TreeItem({
   entry, isDoc, isNoteDir, selectedFilePath, selectedNotePath,
   isExpanded, subEntries, onToggleDir, onClickFile, onClickNote, onDelete,
+  depth = 0, isLast = true,
 }: {
   entry: FileEntry; isDoc: boolean; isNoteDir: boolean
   selectedFilePath: string | null; selectedNotePath: string | null
   isExpanded: boolean; subEntries: FileEntry[]
   onToggleDir: () => void; onClickFile: (path: string) => void
   onClickNote: (path: string) => void; onDelete: (path: string) => void
+  depth?: number; isLast?: boolean
 }) {
   const isDir = entry.isDirectory
   const isSelected = selectedFilePath === entry.path || selectedNotePath === entry.path
+  const hasChildren = isDir && subEntries.length > 0
+
+  // Extract note number from name like "01-标题.md"
+  const noteMatch = entry.name.match(/^(\d{2})-(.+)\.md$/)
+  const noteNum = noteMatch ? noteMatch[1] : null
+  const noteTitle = noteMatch ? noteMatch[2] : entry.name.replace(/\.md$/, '')
 
   return (
     <div className="animate-slide-in">
+      {/* Main row */}
       <div
-        className="group flex items-center gap-1.5 mx-1 px-2 py-1.5 rounded-md cursor-pointer smooth-transition"
-        style={{ background: isSelected ? 'var(--sidebar-active)' : 'transparent' }}
+        className="group flex items-center gap-1 py-1 pr-2 rounded-r-md cursor-pointer smooth-transition"
+        style={{
+          background: isSelected ? 'var(--sidebar-active)' : 'transparent',
+          paddingLeft: `${8 + depth * 16}px`,
+        }}
         onClick={() => {
           if (isDir) onToggleDir()
-          else if (entry.name.endsWith('.md') && !isDoc && !isNoteDir) onClickNote(entry.path)
+          else if (entry.name.endsWith('.md') && !isDoc) onClickNote(entry.path)
           else onClickFile(entry.path)
         }}
         onMouseEnter={(e) => { if (!isSelected) e.currentTarget.style.background = 'var(--sidebar-hover)' }}
         onMouseLeave={(e) => { if (!isSelected) e.currentTarget.style.background = 'transparent' }}
       >
-        {isDir ? (
+        {/* Tree lines */}
+        {depth > 0 && (
+          <span className="flex-shrink-0" style={{ color: 'var(--text-tertiary)', fontSize: '10px', width: '14px', textAlign: 'center', opacity: 0.4, fontFamily: 'monospace' }}>
+            {isLast ? '└' : '├'}
+          </span>
+        )}
+
+        {/* Chevron for directories */}
+        {isDir && !isNoteDir ? (
           <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor"
             strokeWidth="2.5" strokeLinecap="round" className="flex-shrink-0 smooth-transition"
             style={{ color: 'var(--text-tertiary)', transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)' }}>
             <polyline points="9 18 15 12 9 6" />
           </svg>
+        ) : isNoteDir ? (
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            strokeWidth="2.5" strokeLinecap="round" className="flex-shrink-0 smooth-transition"
+            style={{ color: '#eab308', transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)' }}>
+            <polyline points="9 18 15 12 9 6" />
+          </svg>
         ) : <span className="w-[10px] flex-shrink-0" />}
+
+        {/* Icon */}
         {isDir ? (
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="flex-shrink-0"
             style={{ color: isNoteDir ? '#eab308' : 'var(--accent)' }}>
             <path d={isExpanded ? "M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2v1" : "M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"} />
           </svg>
         ) : (
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="flex-shrink-0"
             style={{ color: isDoc ? 'var(--accent)' : '#60a5fa' }}>
             <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" />
           </svg>
         )}
+
+        {/* Name */}
         <span className="text-xs truncate flex-1"
-          style={{ color: isSelected ? 'var(--text-primary)' : 'var(--text-secondary)', fontWeight: isSelected ? 600 : 400 }}>
-          {entry.name}
+          style={{ color: isSelected ? 'var(--text-primary)' : 'var(--text-secondary)', fontWeight: isDoc ? 600 : isSelected ? 500 : 400 }}>
+          {isDoc ? entry.name : noteTitle}
         </span>
+
+        {/* Note number badge */}
+        {noteNum && (
+          <span className="text-[9px] px-1 rounded flex-shrink-0 font-medium"
+            style={{ background: 'rgba(96,165,250,0.12)', color: '#60a5fa' }}>
+            #{noteNum}
+          </span>
+        )}
+
+        {/* Delete */}
         <button onClick={(e) => { e.stopPropagation(); onDelete(entry.path) }}
           className="opacity-0 group-hover:opacity-100 w-5 h-5 rounded flex items-center justify-center flex-shrink-0"
           style={{ color: 'var(--text-tertiary)' }}>
@@ -193,30 +233,32 @@ function TreeItem({
           </svg>
         </button>
       </div>
-      {isDir && isExpanded && subEntries.map((sub) => (
-        <div key={sub.path} className="ml-4">
-          <div
-            className="flex items-center gap-1.5 pl-3 pr-2 py-1.5 mx-0.5 my-0.5 rounded-md cursor-pointer smooth-transition"
-            style={{
-              background: selectedNotePath === sub.path ? 'var(--sidebar-active)' : 'transparent',
-              borderLeft: selectedNotePath === sub.path ? '2px solid var(--accent)' : '2px solid transparent',
-            }}
-            onClick={() => onClickNote(sub.path)}
-            onMouseEnter={(e) => { if (selectedNotePath !== sub.path) e.currentTarget.style.background = 'var(--sidebar-hover)' }}
-            onMouseLeave={(e) => { if (selectedNotePath !== sub.path) e.currentTarget.style.background = 'transparent' }}
-          >
-            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ color: '#60a5fa' }}>
-              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" />
-            </svg>
-            <span className="text-[11px] truncate"
-              style={{ color: selectedNotePath === sub.path ? 'var(--text-primary)' : 'var(--text-secondary)' }}>
-              {sub.name}
-            </span>
-          </div>
+
+      {/* Child notes */}
+      {isDir && isExpanded && subEntries.length > 0 && (
+        <div>
+          {subEntries.map((sub, i) => (
+            <TreeItem
+              key={sub.path}
+              entry={sub}
+              isDoc={false}
+              isNoteDir={sub.isDirectory}
+              selectedFilePath={selectedFilePath}
+              selectedNotePath={selectedNotePath}
+              isExpanded={false}
+              subEntries={[]}
+              onToggleDir={() => {}}
+              onClickFile={onClickFile}
+              onClickNote={onClickNote}
+              onDelete={onDelete}
+              depth={depth + 1}
+              isLast={i === subEntries.length - 1}
+            />
+          ))}
         </div>
-      ))}
+      )}
       {isDir && isExpanded && subEntries.length === 0 && (
-        <p className="text-[10px] pl-10 py-1 italic" style={{ color: 'var(--text-tertiary)' }}>空文件夹</p>
+        <p className="text-[10px] py-0.5 italic" style={{ color: 'var(--text-tertiary)', paddingLeft: `${40 + depth * 16}px` }}>空</p>
       )}
     </div>
   )
