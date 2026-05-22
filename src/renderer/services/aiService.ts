@@ -345,66 +345,89 @@ async function readSSEStream(
   callbacks.onDone(fullText)
 }
 
-// Generate a condensed note from conversation
-export async function summarizeToNote(
-  userQuestion: string,
-  aiAnswer: string
+// Regenerate the entire note from full conversation history
+export async function regenerateNote(
+  documentTitle: string,
+  conversation: { role: string; content: string }[]
 ): Promise<string> {
   const config = getCurrentConfig()
   if (!config.apiKey && config.provider !== 'ollama') {
-    return aiAnswer // fallback: return raw answer
+    return ''
   }
 
-  const prompt = `请将以下问答内容浓缩为一份高质量的学习笔记。
+  const convoText = conversation
+    .map((m) => `**${m.role === 'user' ? '用户提问' : 'AI 回答'}**：\n${m.content}`)
+    .join('\n\n---\n\n')
 
-## 用户问题
-${userQuestion}
+  const prompt = `请根据以下关于文档《${documentTitle}》的完整对话历史，重新整理一份高质量的学习笔记。
 
-## AI 回答
-${aiAnswer}
+## 对话历史
+${convoText}
 
-请按照笔记规范，输出书面化、结构化的凝练笔记。`
+## 要求
+请完全重新整理，而不是在旧笔记上追加。输出格式：
+
+# 文档《${documentTitle}》阅读笔记
+
+（用一段话概括本文档的核心内容和本次阅读的重点收获）
+
+## 关键要点
+- （列出从对话中提炼出的所有重要知识点）
+- ...
+
+## 详细分析
+（按主题分小节组织，每个小节深入展开一个知识点）
+
+## 原文摘录
+> （整理对话中引用过的关键原文段落）
+
+## 总结
+（一两句话总结整体收获和后续可以继续探讨的方向）
+
+请确保：
+- 覆盖对话中讨论过的所有话题
+- 书面化、精炼、无废话
+- 使用 LaTeX 语法写数学公式
+- 适当使用表格对比信息`
 
   try {
-    if (config.provider === 'claude') {
-      const res = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': config.apiKey,
-          'anthropic-version': '2023-06-01',
-        },
-        body: JSON.stringify({
+    const body = config.provider === 'claude'
+      ? JSON.stringify({
           model: config.model,
-          max_tokens: 2048,
+          max_tokens: 4096,
           system: NOTE_SYSTEM_PROMPT,
           messages: [{ role: 'user', content: prompt }],
-        }),
-      })
-      if (!res.ok) return aiAnswer
-      const data = await res.json()
-      return data.content?.[0]?.text || aiAnswer
+        })
+      : JSON.stringify({
+          model: config.model,
+          max_tokens: 4096,
+          messages: [
+            { role: 'system', content: NOTE_SYSTEM_PROMPT },
+            { role: 'user', content: prompt },
+          ],
+        })
+
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+    if (config.provider === 'claude') {
+      headers['x-api-key'] = config.apiKey
+      headers['anthropic-version'] = '2023-06-01'
+    } else {
+      headers['Authorization'] = `Bearer ${config.apiKey}`
     }
 
-    const res = await fetch(config.baseURL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${config.apiKey}`,
-      },
-      body: JSON.stringify({
-        model: config.model,
-        max_tokens: 2048,
-        messages: [
-          { role: 'system', content: NOTE_SYSTEM_PROMPT },
-          { role: 'user', content: prompt },
-        ],
-      }),
-    })
-    if (!res.ok) return aiAnswer
+    const endpoint = config.provider === 'claude'
+      ? 'https://api.anthropic.com/v1/messages'
+      : config.baseURL
+
+    const res = await fetch(endpoint, { method: 'POST', headers, body })
+    if (!res.ok) return ''
+
     const data = await res.json()
-    return data.choices?.[0]?.message?.content || aiAnswer
+    if (config.provider === 'claude') {
+      return data.content?.[0]?.text || ''
+    }
+    return data.choices?.[0]?.message?.content || ''
   } catch {
-    return aiAnswer
+    return ''
   }
 }

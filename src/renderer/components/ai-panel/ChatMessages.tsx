@@ -1,5 +1,6 @@
 import React, { useRef, useEffect } from 'react'
 import { useChatStore } from '@/stores/chatStore'
+import MarkdownRenderer from '@/components/viewer/MarkdownRenderer'
 import EmptyState from '@/components/common/EmptyState'
 
 export default function ChatMessages() {
@@ -37,12 +38,10 @@ export default function ChatMessages() {
         <ChatBubble key={msg.id} role={msg.role} content={msg.content} />
       ))}
 
-      {/* Streaming message */}
       {isStreaming && streamingContent && (
         <ChatBubble role="assistant" content={streamingContent} isStreaming />
       )}
 
-      {/* Loading indicator */}
       {isLoading && !streamingContent && (
         <div className="flex items-center gap-2 px-2 py-3">
           <div
@@ -77,7 +76,6 @@ function ChatBubble({
 
   return (
     <div className={`flex gap-2.5 ${isUser ? 'flex-row-reverse' : ''} animate-fade-in`}>
-      {/* Avatar */}
       <div
         className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5"
         style={{
@@ -99,9 +97,8 @@ function ChatBubble({
         )}
       </div>
 
-      {/* Content */}
       <div
-        className={`rounded-2xl px-3.5 py-2.5 max-w-[85%] text-sm leading-relaxed ${
+        className={`rounded-2xl px-3.5 py-2.5 max-w-[85%] leading-relaxed ${
           isStreaming ? 'typing-cursor' : ''
         }`}
         style={{
@@ -111,9 +108,13 @@ function ChatBubble({
           borderTopLeftRadius: !isUser ? '4px' : undefined,
         }}
       >
-        <div className="markdown-content text-[13px] whitespace-pre-wrap break-words">
-          {content}
-        </div>
+        {isStreaming ? (
+          <div className="text-[13px] whitespace-pre-wrap break-words">{content}</div>
+        ) : (
+          <div className="text-[13px] break-words min-w-0">
+            <MarkdownRenderer content={content} />
+          </div>
+        )}
       </div>
     </div>
   )

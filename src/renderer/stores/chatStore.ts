@@ -3,7 +3,7 @@ import { v4 as uuid } from 'uuid'
 import type { ChatMessage } from '@/types'
 import { getMessages, saveMessage, deleteMessages } from '@/db/database'
 import { useDocumentStore } from './documentStore'
-import { streamChat, hasApiKey, summarizeToNote } from '@/services/aiService'
+import { streamChat, hasApiKey, regenerateNote } from '@/services/aiService'
 import { useNotesStore } from './notesStore'
 
 interface ChatState {
@@ -93,11 +93,18 @@ export const useChatStore = create<ChatState>((set, get) => ({
           isStreaming: false,
         }))
 
-        // Generate condensed note from conversation
-        const title = content.length > 40 ? content.slice(0, 40) + '...' : content
-        const condensedNote = await summarizeToNote(content, fullText)
-        const notesStore = useNotesStore.getState()
-        await notesStore.appendToNote(currentDocumentId, title, condensedNote)
+        // Regenerate full note from complete conversation history
+        const allMessages = [...get().messages]
+        const conversation = allMessages.map((m) => ({
+          role: m.role,
+          content: m.content,
+        }))
+        const docTitle = document?.title || '文档'
+        const regeneratedNote = await regenerateNote(docTitle, conversation)
+        if (regeneratedNote) {
+          const notesStore = useNotesStore.getState()
+          await notesStore.replaceNote(currentDocumentId, regeneratedNote)
+        }
       },
       onError: async (err) => {
         set({ error: err.message, isLoading: false, streamingContent: '', isStreaming: false })

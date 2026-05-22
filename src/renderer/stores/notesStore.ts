@@ -10,6 +10,7 @@ interface NotesState {
 
   loadNote: (documentId: string) => Promise<void>
   appendToNote: (documentId: string, title: string, content: string) => Promise<NoteRecord>
+  replaceNote: (documentId: string, content: string) => Promise<void>
   updateNoteContent: (content: string) => Promise<void>
   clearNote: () => void
 }
@@ -54,6 +55,33 @@ export const useNotesStore = create<NotesState>((set, get) => ({
       await saveNote(newNote)
       set({ currentNote: newNote })
       return newNote
+    }
+  },
+
+  replaceNote: async (documentId, content) => {
+    const { currentNote } = get()
+    const now = Date.now()
+
+    if (currentNote) {
+      const updated: NoteRecord = {
+        ...currentNote,
+        content,
+        updatedAt: now,
+      }
+      await saveNote(updated)
+      set({ currentNote: updated })
+    } else {
+      const newNote: NoteRecord = {
+        id: uuid(),
+        documentId,
+        parentNoteId: null,
+        title: '阅读笔记',
+        content,
+        createdAt: now,
+        updatedAt: now,
+      }
+      await saveNote(newNote)
+      set({ currentNote: newNote })
     }
   },
 
