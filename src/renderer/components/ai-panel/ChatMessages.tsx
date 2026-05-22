@@ -1,7 +1,6 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react'
 import { useChatStore } from '@/stores/chatStore'
-import { useDocumentStore } from '@/stores/documentStore'
-import { useNotesStore } from '@/stores/notesStore'
+import { useWorkspaceStore } from '@/stores/workspaceStore'
 import { useDiffStore } from '@/stores/diffStore'
 import { useTextSelectionStore } from '@/stores/textSelectionStore'
 import MarkdownRenderer from '@/components/viewer/MarkdownRenderer'
@@ -133,33 +132,29 @@ const ChatBubble = React.memo(function ChatBubble({
 })
 
 function ActionButtons({ content }: { content: string }) {
-  const currentDocumentId = useDocumentStore((s) => s.currentDocumentId)
-  const documents = useDocumentStore((s) => s.documents)
-  const currentNote = useNotesStore((s) => s.currentNote)
+  const selectedFilePath = useWorkspaceStore((s) => s.selectedFilePath)
+  const selectedNotePath = useWorkspaceStore((s) => s.selectedNotePath)
+  const currentFileContent = useWorkspaceStore((s) => s.currentFileContent)
   const showDiff = useDiffStore((s) => s.showDiff)
   const [copied, setCopied] = useState(false)
 
   const handleApplyToDoc = useCallback(() => {
-    if (!currentDocumentId) return
-    const doc = documents.find((d) => d.id === currentDocumentId)
-    if (!doc) return
-
+    if (!selectedFilePath) return
+    const oldContent = currentFileContent?.content || ''
     const textSel = useTextSelectionStore.getState().selection
-    if (textSel && textSel.contentId === currentDocumentId) {
-      // Targeted replacement: only replace the selected text
+    if (textSel && textSel.contentId === selectedFilePath) {
       const newFull = textSel.fullContent.slice(0, textSel.startIndex) + content + textSel.fullContent.slice(textSel.endIndex)
       showDiff(textSel.fullContent, newFull, 'document', `选中位置替换 (${textSel.text.length}字 → ${content.length}字)`)
     } else {
-      // Full document replacement
-      showDiff(doc.content, content, 'document', `文档差异对比`)
+      showDiff(oldContent, content, 'document', `文档差异对比`)
     }
-  }, [currentDocumentId, documents, content, showDiff])
+  }, [selectedFilePath, currentFileContent, content, showDiff])
 
   const handleApplyToNote = useCallback(() => {
-    if (!currentNote) return
-    const oldContent = currentNote.content || ''
+    if (!selectedNotePath) return
+    const oldContent = currentFileContent?.content || ''
     showDiff(oldContent, content, 'notes', `笔记差异对比`)
-  }, [currentNote, content, showDiff])
+  }, [selectedNotePath, currentFileContent, content, showDiff])
 
   const handleCopy = useCallback(async () => {
     await navigator.clipboard.writeText(content)

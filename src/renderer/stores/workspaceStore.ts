@@ -1,0 +1,95 @@
+import { create } from 'zustand'
+import type { FileEntry, FileContent } from '@/types'
+
+interface WorkspaceState {
+  workspacePath: string | null
+  rootEntries: FileEntry[]
+  selectedFilePath: string | null
+  selectedNotePath: string | null
+  currentFileContent: FileContent | null
+  isLoading: boolean
+
+  openWorkspace: () => Promise<void>
+  setWorkspacePath: (path: string) => void
+  refreshFiles: () => Promise<void>
+  selectFile: (filePath: string) => Promise<void>
+  selectNote: (notePath: string) => Promise<void>
+  createNote: (parentFilePath: string, noteName: string, content: string) => Promise<string | null>
+  saveCurrentFile: (content: string) => Promise<boolean>
+  deleteEntry: (entryPath: string) => Promise<void>
+}
+
+export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
+  workspacePath: null,
+  rootEntries: [],
+  selectedFilePath: null,
+  selectedNotePath: null,
+  currentFileContent: null,
+  isLoading: false,
+
+  openWorkspace: async () => {
+    const path = await window.electronAPI.openWorkspace()
+    if (!path) return
+    get().setWorkspacePath(path)
+  },
+
+  setWorkspacePath: async (path: string) => {
+    set({ workspacePath: path, isLoading: true })
+    localStorage.setItem('xingtu-workspace', path)
+    const entries = await window.electronAPI.listDir(path)
+    set({ rootEntries: entries, isLoading: false })
+  },
+
+  refreshFiles: async () => {
+    const { workspacePath } = get()
+    if (!workspacePath) return
+    const entries = await window.electronAPI.listDir(workspacePath)
+    set({ rootEntries: entries })
+  },
+
+  selectFile: async (filePath: string) => {
+    const file = await window.electronAPI.readTextFile(filePath)
+    if (file) {
+      set({ selectedFilePath: filePath, selectedNotePath: null, currentFileContent: file })
+    }
+  },
+
+  selectNote: async (notePath: string) => {
+    const file = await window.electronAPI.readTextFile(notePath)
+    if (file) {
+      set({ selectedNotePath: notePath, currentFileContent: file })
+    }
+  },
+
+  createNote: async (parentFilePath, noteName, content) => {
+    const { workspacePath } = get()
+    if (!workspacePath) return null
+    // Create subfolder: 文档名/
+    const parentName = parentFilePath.split(/[/\\]/).pop()?.replace(/\.[^.]+$/, '') || 'untitled'
+    const noteDir = parentFilePath.substring(0, parentFilePath.lastIndexOf('/') + 1 || parentFilePath.lastIndexOf('\\') + 1) + parentName
+    await window.electronAPI.createDir(noteDir)
+    const notePath = `${noteDir}/${noteName}.md`
+    await window.electronAPI.writeTextFile(notePath, content)
+    await get().refreshFiles()
+    return notePath
+  },
+
+  saveCurrentFile: async (content) => {
+    const { selectedFilePath, selectedNotePath } = get()
+    const target = selectedNotePath || selectedFilePath
+    if (!target) return false
+    const ok = await window.electronAPI.writeTextFile(target, content)
+    if (ok) {
+      set({ currentFileContent: { ...get().currentFileContent!, content, size: Buffer.byteLength(content, 'utf-8') } })
+    }
+    return ok
+  },
+
+  deleteEntry: async (entryPath) => {
+    await window.electronAPI.deleteEntry(entryPath)
+    await get().refreshFiles()
+    const { selectedFilePath, selectedNotePath } = get()
+    if (selectedFilePath === entryPath) set({ selectedFilePath: null, currentFileContent: null })
+    if (selectedNotePath === entryPath) set({ selectedNotePath: null, currentFileContent: null })
+  },
+}))

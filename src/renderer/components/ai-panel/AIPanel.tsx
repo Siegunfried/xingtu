@@ -2,12 +2,12 @@ import React from 'react'
 import ChatMessages from './ChatMessages'
 import ChatInput from './ChatInput'
 import EmptyState from '@/components/common/EmptyState'
-import { useDocumentStore } from '@/stores/documentStore'
+import { useWorkspaceStore } from '@/stores/workspaceStore'
 
 export default function AIPanel() {
-  const currentDocumentId = useDocumentStore((s) => s.currentDocumentId)
+  const selectedFilePath = useWorkspaceStore((s) => s.selectedFilePath)
 
-  if (!currentDocumentId) {
+  if (!selectedFilePath) {
     return (
       <div className="flex flex-col h-full" style={{
         background: 'var(--bg-secondary)',

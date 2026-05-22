@@ -2,6 +2,12 @@ import { app, BrowserWindow, Menu, shell } from 'electron'
 import { join } from 'path'
 import { registerIpcHandlers } from './ipc'
 
+// Ensure consistent user data path
+app.setName('星图')
+if (!app.isPackaged) {
+  app.setPath('userData', join(app.getPath('appData'), '星图'))
+}
+
 let mainWindow: BrowserWindow | null = null
 
 function createWindow(): void {
