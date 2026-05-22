@@ -199,7 +199,7 @@ export default function StarMapPanel({ onClose }: Props) {
     if (selectedNode.type === 'document') await selectFile(selectedNode.path)
     else await selectNote(selectedNode.path)
     await loadMessages(selectedNode.path)
-    closeCard()
+    onClose()
   }
 
   return (
