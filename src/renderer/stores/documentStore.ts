@@ -7,6 +7,7 @@ import { parseDocument } from '@/services/documentParser'
 interface DocumentState {
   documents: DocumentRecord[]
   currentDocumentId: string | null
+  selectedNoteId: string | null
   isLoading: boolean
   error: string | null
 
@@ -15,6 +16,7 @@ interface DocumentState {
   openDocument: (id: string) => Promise<void>
   removeDocument: (id: string) => Promise<void>
   setCurrentDocumentId: (id: string | null) => void
+  setSelectedNoteId: (id: string | null) => void
   updateDocument: (id: string, content: string) => Promise<void>
   clearError: () => void
 }
@@ -22,6 +24,7 @@ interface DocumentState {
 export const useDocumentStore = create<DocumentState>((set, get) => ({
   documents: [],
   currentDocumentId: null,
+  selectedNoteId: null,
   isLoading: false,
   error: null,
 
@@ -75,7 +78,8 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
     })
   },
 
-  setCurrentDocumentId: (id) => set({ currentDocumentId: id }),
+  setCurrentDocumentId: (id) => set({ currentDocumentId: id, selectedNoteId: null }),
+  setSelectedNoteId: (id) => set({ selectedNoteId: id }),
 
   updateDocument: async (id, content) => {
     const { documents } = get()

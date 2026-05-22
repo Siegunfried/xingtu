@@ -9,7 +9,6 @@ import StarMapPanel from '@/components/starmap/StarMapPanel'
 import DiffPanel from '@/components/diff/DiffPanel'
 import { useDiffStore } from '@/stores/diffStore'
 import { useUndoStore } from '@/stores/undoStore'
-import type { TreeSelection } from '@/components/tree/FileTree'
 import type { AIProvider } from '@/types'
 
 type Theme = 'light' | 'dark' | 'system'
@@ -18,15 +17,15 @@ export default function App() {
   const loadDocuments = useDocumentStore((s) => s.loadDocuments)
   const importDocument = useDocumentStore((s) => s.importDocument)
   const updateDocument = useDocumentStore((s) => s.updateDocument)
+  const currentDocumentId = useDocumentStore((s) => s.currentDocumentId)
+  const selectedNoteId = useDocumentStore((s) => s.selectedNoteId)
+  const documents = useDocumentStore((s) => s.documents)
   const error = useDocumentStore((s) => s.error)
   const clearError = useDocumentStore((s) => s.clearError)
   const loadMessages = useChatStore((s) => s.loadMessages)
   const loadNote = useNotesStore((s) => s.loadNote)
   const updateNoteContent = useNotesStore((s) => s.updateNoteContent)
-  const setCurrentDocumentId = useDocumentStore((s) => s.setCurrentDocumentId)
-
-  // File tree selection
-  const [selection, setSelection] = useState<TreeSelection | null>(null)
+  const currentNote = useNotesStore((s) => s.currentNote)
 
   // Diff panel
   const pendingDiff = useDiffStore((s) => s.pendingDiff)
@@ -90,16 +89,6 @@ export default function App() {
     loadDocuments()
   }, [])
 
-  // Sync selection with currentDocumentId (e.g. after import)
-  const currentDocumentId = useDocumentStore((s) => s.currentDocumentId)
-  useEffect(() => {
-    if (currentDocumentId && (!selection || selection.documentId !== currentDocumentId)) {
-      setSelection({ type: 'document', id: currentDocumentId, documentId: currentDocumentId })
-      loadMessages(currentDocumentId)
-      loadNote(currentDocumentId)
-    }
-  }, [currentDocumentId])
-
   // Drag & Drop handlers
   const handleDragEnter = useCallback((e: React.DragEvent) => {
     e.preventDefault()
@@ -157,30 +146,21 @@ export default function App() {
     }
   }, [importDocument, loadMessages, loadNote])
 
-  // File tree selection handler
-  const handleTreeSelect = useCallback((sel: TreeSelection) => {
-    setSelection(sel)
-    setCurrentDocumentId(sel.documentId)
-    loadMessages(sel.documentId)
-    loadNote(sel.documentId)
-  }, [setCurrentDocumentId, loadMessages, loadNote])
-
   // Diff accept/reject
   const handleDiffAccept = useCallback(async () => {
     if (!pendingDiff) return
     const { oldContent, newContent, target } = pendingDiff
-    const id = target === 'document' ? selection?.documentId : selection?.id
+    const id = target === 'document' ? currentDocumentId : selectedNoteId
     if (id) {
       useUndoStore.getState().pushState(id, oldContent)
     }
-    if (target === 'document') {
-      const docId = selection?.documentId
-      if (docId) await updateDocument(docId, newContent)
+    if (target === 'document' && currentDocumentId) {
+      await updateDocument(currentDocumentId, newContent)
     } else if (target === 'notes') {
       await updateNoteContent(newContent)
     }
     clearDiff()
-  }, [pendingDiff, selection, updateDocument, updateNoteContent, clearDiff])
+  }, [pendingDiff, currentDocumentId, selectedNoteId, updateDocument, updateNoteContent, clearDiff])
 
   const handleDiffReject = useCallback(() => {
     clearDiff()
@@ -240,7 +220,7 @@ export default function App() {
       {showStarMap ? (
         <StarMapPanel onClose={() => setShowStarMap(false)} />
       ) : (
-        <ThreeColumnLayout selection={selection} onSelect={handleTreeSelect} />
+        <ThreeColumnLayout />
       )}
 
       {/* Drag overlay */}
