@@ -7,6 +7,7 @@ interface WorkspaceState {
   selectedFilePath: string | null
   selectedNotePath: string | null
   currentFileContent: FileContent | null
+  autoExpandDir: string | null
   isLoading: boolean
 
   openWorkspace: () => Promise<void>
@@ -17,6 +18,7 @@ interface WorkspaceState {
   createNote: (parentFilePath: string, noteName: string, content: string) => Promise<string | null>
   saveCurrentFile: (content: string) => Promise<boolean>
   deleteEntry: (entryPath: string) => Promise<void>
+  clearAutoExpand: () => void
 }
 
 export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
@@ -25,6 +27,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
   selectedFilePath: null,
   selectedNotePath: null,
   currentFileContent: null,
+  autoExpandDir: null,
   isLoading: false,
 
   openWorkspace: async () => {
@@ -85,11 +88,21 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
     const parentName = parentFilePath.split(/[/\\]/).pop()?.replace(/\.[^.]+$/, '') || 'untitled'
     const noteDir = parentFilePath.substring(0, parentFilePath.lastIndexOf('/') + 1 || parentFilePath.lastIndexOf('\\') + 1) + parentName
     await window.electronAPI.createDir(noteDir)
-    const notePath = `${noteDir}/${noteName}.md`
+
+    // Count existing notes for numbering
+    const existing = await window.electronAPI.listDir(noteDir)
+    const count = existing.filter((e) => e.name.match(/^\d{2}-.*\.md$/)).length
+    const prefix = String(count + 1).padStart(2, '0')
+    const safeName = noteName.replace(/[/\\:*?"<>|]/g, '-').slice(0, 50)
+    const notePath = `${noteDir}/${prefix}-${safeName}.md`
     await window.electronAPI.writeTextFile(notePath, content)
     await get().refreshFiles()
+    // Signal FileTree to auto-expand this directory
+    set({ autoExpandDir: noteDir })
     return notePath
   },
+
+  clearAutoExpand: () => set({ autoExpandDir: null }),
 
   saveCurrentFile: async (content) => {
     const { selectedFilePath, selectedNotePath } = get()

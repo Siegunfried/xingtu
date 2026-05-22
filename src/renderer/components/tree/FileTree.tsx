@@ -16,6 +16,8 @@ export default function FileTree({ onOpenStarMap }: Props) {
   const deleteEntry = useWorkspaceStore((s) => s.deleteEntry)
   const selectedFilePath = useWorkspaceStore((s) => s.selectedFilePath)
   const selectedNotePath = useWorkspaceStore((s) => s.selectedNotePath)
+  const autoExpandDir = useWorkspaceStore((s) => s.autoExpandDir)
+  const clearAutoExpand = useWorkspaceStore((s) => s.clearAutoExpand)
   const loadMessages = useChatStore((s) => s.loadMessages)
   const [expandedDirs, setExpandedDirs] = useState<Set<string>>(new Set())
   const [subEntries, setSubEntries] = useState<Record<string, FileEntry[]>>({})
@@ -24,6 +26,18 @@ export default function FileTree({ onOpenStarMap }: Props) {
     const saved = localStorage.getItem('xingtu-workspace')
     if (saved) useWorkspaceStore.getState().setWorkspacePath(saved)
   }, [])
+
+  // Auto-expand directory when a new note is created
+  useEffect(() => {
+    if (!autoExpandDir) return
+    const loadAndExpand = async () => {
+      const entries = await window.electronAPI.listDir(autoExpandDir)
+      setSubEntries((prev) => ({ ...prev, [autoExpandDir]: entries }))
+      setExpandedDirs((prev) => new Set(prev).add(autoExpandDir))
+      clearAutoExpand()
+    }
+    loadAndExpand()
+  }, [autoExpandDir, clearAutoExpand])
 
   const toggleDir = async (dirPath: string) => {
     if (expandedDirs.has(dirPath)) {
