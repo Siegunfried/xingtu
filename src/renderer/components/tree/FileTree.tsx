@@ -20,6 +20,7 @@ export default function FileTree({ onOpenStarMap }: Props) {
   const clearAutoExpand = useWorkspaceStore((s) => s.clearAutoExpand)
   const loadMessages = useChatStore((s) => s.loadMessages)
   const [expandedDirs, setExpandedDirs] = useState<Set<string>>(new Set())
+  const [collapsedDocs, setCollapsedDocs] = useState<Set<string>>(new Set())
   const [subEntries, setSubEntries] = useState<Record<string, FileEntry[]>>({})
 
   useEffect(() => {
@@ -143,11 +144,19 @@ export default function FileTree({ onOpenStarMap }: Props) {
             key={doc.path} entry={doc}
             isDoc={true}
             selectedFilePath={selectedFilePath} selectedNotePath={selectedNotePath}
-            isExpanded={true}
+            isExpanded={!collapsedDocs.has(doc.path)}
             hasNoteChildren={children.length > 0}
             noteChildren={children}
             onClickFile={handleClickFile} onClickNote={handleClickNote}
             onDelete={deleteEntry}
+            onToggleCollapse={() => {
+              setCollapsedDocs((prev) => {
+                const next = new Set(prev)
+                if (next.has(doc.path)) next.delete(doc.path)
+                else next.add(doc.path)
+                return next
+              })
+            }}
           />
         ))}
 
@@ -188,7 +197,7 @@ function TreeItem({
   entry, isDoc, selectedFilePath, selectedNotePath,
   isExpanded, hasNoteChildren, noteChildren,
   onClickFile, onClickNote, onDelete,
-  onToggleDir, subEntries,
+  onToggleDir, onToggleCollapse, subEntries,
   depth = 0, isLast = true,
 }: {
   entry: FileEntry; isDoc: boolean
@@ -200,6 +209,7 @@ function TreeItem({
   onClickNote: (path: string) => void
   onDelete: (path: string) => void
   onToggleDir?: () => void
+  onToggleCollapse?: () => void
   subEntries?: FileEntry[]
   depth?: number; isLast?: boolean
 }) {
@@ -225,13 +235,12 @@ function TreeItem({
           paddingLeft: `${8 + depth * 16}px`,
         }}
         onClick={() => {
-          if (isDoc && hasNoteChildren) {
-            // Toggle expand for doc-with-notes (prev next expand state)
-            const nextExpand = !isExpanded
-            if (nextExpand) onClickFile(entry.path)
-          } else if (isDir) {
+          if (isDir) {
             onToggleDir?.()
-          } else if (entry.name.endsWith('.md') && !isDoc) {
+          } else if (isDoc) {
+            onClickFile(entry.path)
+            if (hasNoteChildren) onToggleCollapse?.()
+          } else if (entry.name.endsWith('.md')) {
             onClickNote(entry.path)
           } else {
             onClickFile(entry.path)
