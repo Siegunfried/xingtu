@@ -1,5 +1,7 @@
-import React, { useRef, useEffect } from 'react'
+import React, { useRef, useEffect, useState, useCallback } from 'react'
 import { useChatStore } from '@/stores/chatStore'
+import { useDocumentStore } from '@/stores/documentStore'
+import { useNotesStore } from '@/stores/notesStore'
 import MarkdownRenderer from '@/components/viewer/MarkdownRenderer'
 import EmptyState from '@/components/common/EmptyState'
 
@@ -73,6 +75,7 @@ function ChatBubble({
   isStreaming?: boolean
 }) {
   const isUser = role === 'user'
+  const isAssistant = role === 'assistant'
 
   return (
     <div className={`flex gap-2.5 ${isUser ? 'flex-row-reverse' : ''} animate-fade-in`}>
@@ -97,25 +100,124 @@ function ChatBubble({
         )}
       </div>
 
-      <div
-        className={`rounded-2xl px-3.5 py-2.5 max-w-[85%] leading-relaxed ${
-          isStreaming ? 'typing-cursor' : ''
-        }`}
-        style={{
-          background: isUser ? 'var(--chat-user-bg)' : 'var(--chat-ai-bg)',
-          color: isUser ? 'var(--chat-user-text)' : 'var(--chat-ai-text)',
-          borderTopRightRadius: isUser ? '4px' : undefined,
-          borderTopLeftRadius: !isUser ? '4px' : undefined,
-        }}
-      >
-        {isStreaming ? (
-          <div className="text-[13px] whitespace-pre-wrap break-words">{content}</div>
-        ) : (
-          <div className="text-[13px] break-words min-w-0">
-            <MarkdownRenderer content={content} />
-          </div>
+      <div className="max-w-[85%]">
+        <div
+          className={`rounded-2xl px-3.5 py-2.5 leading-relaxed ${
+            isStreaming ? 'typing-cursor' : ''
+          }`}
+          style={{
+            background: isUser ? 'var(--chat-user-bg)' : 'var(--chat-ai-bg)',
+            color: isUser ? 'var(--chat-user-text)' : 'var(--chat-ai-text)',
+            borderTopRightRadius: isUser ? '4px' : undefined,
+            borderTopLeftRadius: !isUser ? '4px' : undefined,
+          }}
+        >
+          {isStreaming ? (
+            <div className="text-[13px] whitespace-pre-wrap break-words">{content}</div>
+          ) : (
+            <div className="text-[13px] break-words min-w-0">
+              <MarkdownRenderer content={content} />
+            </div>
+          )}
+        </div>
+
+        {/* Action buttons for assistant messages */}
+        {isAssistant && !isStreaming && content.length > 20 && (
+          <ActionButtons content={content} />
         )}
       </div>
     </div>
+  )
+}
+
+function ActionButtons({ content }: { content: string }) {
+  const currentDocumentId = useDocumentStore((s) => s.currentDocumentId)
+  const updateDocument = useDocumentStore((s) => s.updateDocument)
+  const updateNoteContent = useNotesStore((s) => s.updateNoteContent)
+  const currentNote = useNotesStore((s) => s.currentNote)
+  const [copied, setCopied] = useState(false)
+  const [appliedDoc, setAppliedDoc] = useState(false)
+  const [appliedNote, setAppliedNote] = useState(false)
+
+  const handleApplyToDoc = useCallback(async () => {
+    if (!currentDocumentId) return
+    await updateDocument(currentDocumentId, content)
+    setAppliedDoc(true)
+    setTimeout(() => setAppliedDoc(false), 2000)
+  }, [currentDocumentId, content, updateDocument])
+
+  const handleApplyToNote = useCallback(async () => {
+    if (!currentNote) return
+    await updateNoteContent(content)
+    setAppliedNote(true)
+    setTimeout(() => setAppliedNote(false), 2000)
+  }, [currentNote, content, updateNoteContent])
+
+  const handleCopy = useCallback(async () => {
+    await navigator.clipboard.writeText(content)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }, [content])
+
+  return (
+    <div className="flex gap-1 mt-1.5 px-1">
+      <ActionBtn
+        icon={
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+            <polyline points="14 2 14 8 20 8" />
+          </svg>
+        }
+        label={appliedDoc ? '已应用' : '应用到文档'}
+        onClick={handleApplyToDoc}
+        active={appliedDoc}
+      />
+      <ActionBtn
+        icon={
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+            <line x1="12" y1="20" x2="12" y2="10" />
+            <line x1="18" y1="20" x2="18" y2="4" />
+            <line x1="6" y1="20" x2="6" y2="16" />
+          </svg>
+        }
+        label={appliedNote ? '已更新' : '应用到笔记'}
+        onClick={handleApplyToNote}
+        active={appliedNote}
+      />
+      <ActionBtn
+        icon={
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+            <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+          </svg>
+        }
+        label={copied ? '已复制' : '复制'}
+        onClick={handleCopy}
+        active={copied}
+      />
+    </div>
+  )
+}
+
+function ActionBtn({
+  icon, label, onClick, active,
+}: {
+  icon: React.ReactNode
+  label: string
+  onClick: () => void
+  active: boolean
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className="flex items-center gap-1 px-2 py-1 rounded-full text-[10px] smooth-transition hover:opacity-80"
+      style={{
+        background: active ? 'var(--accent-light)' : 'var(--bg-tertiary)',
+        color: active ? 'var(--accent)' : 'var(--text-tertiary)',
+      }}
+    >
+      {icon}
+      <span>{label}</span>
+    </button>
   )
 }
