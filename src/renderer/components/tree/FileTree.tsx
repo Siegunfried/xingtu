@@ -39,6 +39,34 @@ export default function FileTree({ onOpenStarMap }: Props) {
     loadAndExpand()
   }, [autoExpandDir, clearAutoExpand])
 
+  // Auto-expand note folders on initial load / refresh
+  useEffect(() => {
+    if (!workspacePath || rootEntries.length === 0) return
+    const expandNoteFolders = async () => {
+      const toExpand: string[] = []
+      const docNames = new Set(
+        rootEntries.filter((e) => !e.isDirectory).map((e) => e.name.replace(/\.[^.]+$/, ''))
+      )
+      for (const entry of rootEntries) {
+        if (entry.isDirectory && docNames.has(entry.name)) {
+          toExpand.push(entry.path)
+        }
+      }
+      if (toExpand.length === 0) return
+      const entriesMap: Record<string, FileEntry[]> = {}
+      for (const dir of toExpand) {
+        entriesMap[dir] = await window.electronAPI.listDir(dir)
+      }
+      setSubEntries((prev) => ({ ...prev, ...entriesMap }))
+      setExpandedDirs((prev) => {
+        const next = new Set(prev)
+        toExpand.forEach((d) => next.add(d))
+        return next
+      })
+    }
+    expandNoteFolders()
+  }, [workspacePath, rootEntries])
+
   const toggleDir = async (dirPath: string) => {
     if (expandedDirs.has(dirPath)) {
       setExpandedDirs((prev) => { const n = new Set(prev); n.delete(dirPath); return n })
