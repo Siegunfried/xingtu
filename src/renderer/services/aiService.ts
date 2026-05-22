@@ -217,6 +217,15 @@ interface StreamCallbacks {
   onError: (error: Error) => void
 }
 
+// Ensure all header values are ASCII-safe (HTTP spec requires ISO-8859-1)
+function sanitizeHeaders(h: Record<string, string>): Record<string, string> {
+  const clean: Record<string, string> = {}
+  for (const [k, v] of Object.entries(h)) {
+    clean[k] = v.replace(/[^\x00-\xFF]/g, '')
+  }
+  return clean
+}
+
 const MAX_CONTEXT_LENGTH = 50000
 
 function truncateDocument(content: string): string {
@@ -280,11 +289,11 @@ async function streamClaude(
   try {
     const res = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
-      headers: {
+      headers: sanitizeHeaders({
         'Content-Type': 'application/json',
         'x-api-key': config.apiKey,
         'anthropic-version': '2023-06-01',
-      },
+      }),
       body: JSON.stringify({
         model: config.model,
         max_tokens: 4096,
@@ -329,7 +338,7 @@ async function streamOpenAICompatible(
 
     const res = await fetch(config.baseURL, {
       method: 'POST',
-      headers,
+      headers: sanitizeHeaders(headers),
       body: JSON.stringify({
         model: config.model,
         max_tokens: 4096,
@@ -459,7 +468,7 @@ ${convoText}
       ? 'https://api.anthropic.com/v1/messages'
       : config.baseURL
 
-    const res = await fetch(endpoint, { method: 'POST', headers, body })
+    const res = await fetch(endpoint, { method: 'POST', headers: sanitizeHeaders(headers), body })
     if (!res.ok) return ''
 
     const data = await res.json()
