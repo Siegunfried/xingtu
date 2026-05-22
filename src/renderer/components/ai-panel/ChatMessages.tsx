@@ -66,7 +66,7 @@ export default function ChatMessages() {
   )
 }
 
-function ChatBubble({
+const ChatBubble = React.memo(function ChatBubble({
   role,
   content,
   isStreaming,
@@ -129,7 +129,7 @@ function ChatBubble({
       </div>
     </div>
   )
-}
+})
 
 function ActionButtons({ content }: { content: string }) {
   const currentDocumentId = useDocumentStore((s) => s.currentDocumentId)

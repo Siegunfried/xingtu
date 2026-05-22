@@ -72,11 +72,27 @@ export const useChatStore = create<ChatState>((set, get) => ({
     // Remove the last user message from history since aiService will add it
     history.pop()
 
+    // Throttle streaming updates: buffer tokens and flush every 50ms
+    let tokenBuffer = ''
+    let flushTimer: ReturnType<typeof setTimeout> | null = null
+    const flushBuffer = () => {
+      if (tokenBuffer) {
+        set((state) => ({ streamingContent: state.streamingContent + tokenBuffer }))
+        tokenBuffer = ''
+      }
+      flushTimer = null
+    }
+
     await streamChat(document.content, history, content, {
       onToken: (token) => {
-        set((state) => ({ streamingContent: state.streamingContent + token }))
+        tokenBuffer += token
+        if (!flushTimer) {
+          flushTimer = setTimeout(flushBuffer, 50)
+        }
       },
       onDone: async (fullText) => {
+        // Flush any remaining tokens
+        flushBuffer()
         const assistantMsg: ChatMessage = {
           id: uuid(),
           documentId: currentDocumentId,
@@ -107,6 +123,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
         }
       },
       onError: async (err) => {
+        if (flushTimer) clearTimeout(flushTimer)
         set({ error: err.message, isLoading: false, streamingContent: '', isStreaming: false })
       },
     })
