@@ -1,18 +1,37 @@
 import type { AIProvider, ProviderConfig } from '@/types'
 
-const SYSTEM_PROMPT = `你是一个专业的 AI 阅读助手。你的职责是：
+const SYSTEM_PROMPT = `你是一个专业的 AI 阅读助手，帮助用户理解和分析文档内容。
 
-1. **阅读分析**：仔细阅读用户提供的文档内容，深入理解其中的信息。
-2. **专业回答**：基于文档内容，用专业、清晰的中文回答用户的问题。回答要有条理，使用 Markdown 格式。
-3. **引用原文**：在回答中适当引用文档原文来支撑你的观点。
-4. **诚实回答**：如果文档中没有相关信息，请明确告知用户，不要编造内容。
-5. **深度思考**：不满足于表面信息，要能挖掘文档中的深层含义、逻辑关系。
+## 回答原则
 
-回答格式要求：
-- 使用清晰的标题层级
-- 使用列表组织要点
-- 引用原文时使用 > 引用格式
-- 重要概念使用 **粗体** 标记`
+1. **条理清晰**：每个回答要有明确的层级结构，先概述再展开，段落之间有逻辑递进。
+2. **用语直白**：用通俗易懂的中文解释复杂概念。避免学术黑话和过度修饰。像一位耐心的老师在给学生讲解。
+3. **逻辑通畅**：论证过程完整连贯，不跳跃。先说结论，再给论据，最后总结。
+4. **基于文档**：回答必须源自用户提供的文档内容。如果文档没有相关信息，直接说"文档中未提及"。
+5. **引用关键原文**：适当引用文档中的关键句子或段落来支撑观点，使用 > 引用格式。
+
+## 格式规范
+
+- 使用 ### 小标题划分段落
+- 用无序列表和有序列表组织要点
+- 重要术语和关键结论用 **粗体** 强调
+- 引用原文时使用 > 引用块
+- 数学公式使用 LaTeX 语法，行内公式用 $...$，块级公式用 $$...$$
+- 对比信息使用表格展示
+- 代码或技术术语用反引号包裹`
+
+const NOTE_SYSTEM_PROMPT = `你是一个专业的知识整理助手。你的任务是将对话内容浓缩为高质量的学习笔记。
+
+## 笔记要求
+
+1. **书面化**：使用正式、精炼的书面语，去除口语化表达和客套话
+2. **干货优先**：只保留核心观点、关键论据、重要数据和结论。删除铺垫、举例、废话
+3. **结构完整**：用清晰的标题层级组织内容，确保逻辑链条完整
+4. **全面覆盖**：概括对话中所有讨论到的要点，不遗漏关键信息
+5. **独立可读**：笔记应该是自包含的，读者不需要看原始对话也能理解
+6. **简洁有力**：控制篇幅，每句话都要有信息量
+
+输出使用 Markdown 格式，必要时使用 LaTeX 公式、表格、列表等元素来增强可读性。`
 
 export const PROVIDERS: Record<AIProvider, ProviderConfig> = {
   claude: {
@@ -324,4 +343,68 @@ async function readSSEStream(
     }
   }
   callbacks.onDone(fullText)
+}
+
+// Generate a condensed note from conversation
+export async function summarizeToNote(
+  userQuestion: string,
+  aiAnswer: string
+): Promise<string> {
+  const config = getCurrentConfig()
+  if (!config.apiKey && config.provider !== 'ollama') {
+    return aiAnswer // fallback: return raw answer
+  }
+
+  const prompt = `请将以下问答内容浓缩为一份高质量的学习笔记。
+
+## 用户问题
+${userQuestion}
+
+## AI 回答
+${aiAnswer}
+
+请按照笔记规范，输出书面化、结构化的凝练笔记。`
+
+  try {
+    if (config.provider === 'claude') {
+      const res = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': config.apiKey,
+          'anthropic-version': '2023-06-01',
+        },
+        body: JSON.stringify({
+          model: config.model,
+          max_tokens: 2048,
+          system: NOTE_SYSTEM_PROMPT,
+          messages: [{ role: 'user', content: prompt }],
+        }),
+      })
+      if (!res.ok) return aiAnswer
+      const data = await res.json()
+      return data.content?.[0]?.text || aiAnswer
+    }
+
+    const res = await fetch(config.baseURL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${config.apiKey}`,
+      },
+      body: JSON.stringify({
+        model: config.model,
+        max_tokens: 2048,
+        messages: [
+          { role: 'system', content: NOTE_SYSTEM_PROMPT },
+          { role: 'user', content: prompt },
+        ],
+      }),
+    })
+    if (!res.ok) return aiAnswer
+    const data = await res.json()
+    return data.choices?.[0]?.message?.content || aiAnswer
+  } catch {
+    return aiAnswer
+  }
 }

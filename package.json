@@ -11,17 +11,19 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.39.0",
     "dexie": "^4.0.11",
+    "katex": "^0.17.0",
     "mammoth": "^1.9.1",
     "pdfjs-dist": "^4.10.38",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-markdown": "^9.0.3",
+    "rehype-katex": "^7.0.1",
     "remark-gfm": "^4.0.0",
+    "remark-math": "^6.0.0",
     "uuid": "^11.1.0",
     "zustand": "^5.0.3"
   },
   "devDependencies": {
-
     "@types/react": "^18.3.18",
     "@types/react-dom": "^18.3.5",
     "@types/uuid": "^10.0.0",

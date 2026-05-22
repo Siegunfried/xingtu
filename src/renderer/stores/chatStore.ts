@@ -3,7 +3,7 @@ import { v4 as uuid } from 'uuid'
 import type { ChatMessage } from '@/types'
 import { getMessages, saveMessage, deleteMessages } from '@/db/database'
 import { useDocumentStore } from './documentStore'
-import { streamChat, hasApiKey } from '@/services/aiService'
+import { streamChat, hasApiKey, summarizeToNote } from '@/services/aiService'
 import { useNotesStore } from './notesStore'
 
 interface ChatState {
@@ -93,10 +93,11 @@ export const useChatStore = create<ChatState>((set, get) => ({
           isStreaming: false,
         }))
 
-        // Append to notes automatically (with title from user message)
+        // Generate condensed note from conversation
         const title = content.length > 40 ? content.slice(0, 40) + '...' : content
+        const condensedNote = await summarizeToNote(content, fullText)
         const notesStore = useNotesStore.getState()
-        await notesStore.appendToNote(currentDocumentId, title, fullText)
+        await notesStore.appendToNote(currentDocumentId, title, condensedNote)
       },
       onError: async (err) => {
         set({ error: err.message, isLoading: false, streamingContent: '', isStreaming: false })
