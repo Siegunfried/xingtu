@@ -21,6 +21,7 @@ export default function ContentViewer() {
   const [editContent, setEditContent] = useState('')
 
   const contentRef = useRef<HTMLDivElement>(null)
+  const textSelection = useTextSelectionStore((s) => s.selection)
   const file = currentFileContent
   const isNote = !!selectedNotePath
   const contentId = selectedNotePath || selectedFilePath || ''
@@ -145,6 +146,14 @@ export default function ContentViewer() {
               className="w-full h-[calc(100vh-120px)] resize-none rounded-xl p-4 text-sm outline-none leading-relaxed"
               style={{ background: 'var(--input-bg)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', fontFamily: 'inherit' }}
             />
+          ) : textSelection && textSelection.contentId === contentId ? (
+            <div>
+              <MarkdownRenderer content={content.slice(0, textSelection.startIndex)} />
+              <div className="rounded-md my-0.5" style={{ background: 'rgba(0,113,227,0.12)', boxShadow: '0 0 0 1px rgba(0,113,227,0.2)', padding: '0 2px' }}>
+                <MarkdownRenderer content={content.slice(textSelection.startIndex, textSelection.endIndex)} />
+              </div>
+              <MarkdownRenderer content={content.slice(textSelection.endIndex)} />
+            </div>
           ) : (
             <MarkdownRenderer content={content} />
           )}
