@@ -32,14 +32,17 @@ export default function ContentViewer() {
   const canRedo = !!(stack && stack.future.length > 0)
 
   // Text selection tracking
-  const handleMouseUp = useCallback(() => {
-    const sel = window.getSelection()
-    if (!sel || sel.isCollapsed || !sel.toString().trim()) { clearSelection(); return }
-    const text = sel.toString()
-    const idx = content.indexOf(text)
-    if (idx === -1) return
-    setSelection({ text, startIndex: idx, endIndex: idx + text.length, contentId, fullContent: content })
-  }, [content, contentId, setSelection, clearSelection])
+  const handleMouseUp = () => {
+    // Use setTimeout to ensure browser finalizes the selection
+    setTimeout(() => {
+      const sel = window.getSelection()
+      if (!sel || sel.isCollapsed || !sel.toString().trim()) { clearSelection(); return }
+      const text = sel.toString()
+      const idx = content.indexOf(text)
+      if (idx === -1) return
+      setSelection({ text, startIndex: idx, endIndex: idx + text.length, contentId, fullContent: content })
+    }, 0)
+  }
 
   const handleStartEdit = () => {
     pushState(contentId, content)
