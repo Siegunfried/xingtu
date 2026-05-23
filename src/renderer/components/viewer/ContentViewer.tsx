@@ -38,9 +38,19 @@ export default function ContentViewer() {
   const canUndo = !!(stack && stack.past.length > 0)
   const canRedo = !!(stack && stack.future.length > 0)
 
-  // Selection listener — DOM-based, no indexOf
+  // Selection listener — DOM-based, handles multi-block selection
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout> | null = null
+
+    const findBlockEl = (container: Node): HTMLElement | null => {
+      let n: Node | null = container
+      while (n && n !== document.body) {
+        if (n instanceof HTMLElement && n.dataset.blockId) return n
+        n = n.parentElement
+      }
+      return null
+    }
+
     const capture = () => {
       if (timer) clearTimeout(timer)
       timer = setTimeout(() => {
@@ -49,34 +59,37 @@ export default function ContentViewer() {
         const text = sel.toString().trim()
         if (!text) return
 
-        // Find the block containing the selection start via DOM
         const range = sel.getRangeAt(0)
-        let node: Node | null = range.startContainer
-        let blockEl: HTMLElement | null = null
-        while (node && node !== document.body) {
-          if (node instanceof HTMLElement && node.dataset.blockId) {
-            blockEl = node
-            break
+        const startEl = findBlockEl(range.startContainer)
+        const endEl = findBlockEl(range.endContainer)
+        if (!startEl || !endEl) return
+
+        const allBlocks = blocksRef.current
+        const startId = startEl.dataset.blockId!
+        const endId = endEl.dataset.blockId!
+        const startIdx = allBlocks.findIndex((b) => b.id === startId)
+        const endIdx = allBlocks.findIndex((b) => b.id === endId)
+        if (startIdx === -1 || endIdx === -1) return
+
+        // Collect text from all blocks in selection range
+        let selectedText = ''
+        for (let i = startIdx; i <= endIdx; i++) {
+          if (allBlocks[i].type !== 'empty') {
+            selectedText += (selectedText ? '\n' : '') + allBlocks[i].text
           }
-          node = node.parentElement
         }
-        if (!blockEl) return
 
-        const blockId = blockEl.dataset.blockId!
-        const block = blocksRef.current.find((b) => b.id === blockId)
-        if (!block) return
-
-        // Now find the selected text within this block
-        const blockText = block.text
-        const idx = blockText.indexOf(text)
+        // Find selected text position in concatenated block text
+        const idx = selectedText.indexOf(text)
         if (idx === -1) {
-          // Try first 30 chars
-          const short = text.slice(0, 30)
-          const sidx = blockText.indexOf(short)
+          // Try first 40 chars
+          const short = text.slice(0, 40)
+          const sidx = selectedText.indexOf(short)
           if (sidx === -1) return
           const selData = {
-            text, startIndex: block.globalStart + sidx,
-            endIndex: block.globalStart + sidx + text.length,
+            text,
+            startIndex: allBlocks[startIdx].globalStart + sidx,
+            endIndex: allBlocks[startIdx].globalStart + sidx + text.length,
             contentId, fullContent: content,
           }
           setSelection(selData)
@@ -85,8 +98,9 @@ export default function ContentViewer() {
         }
 
         const selData = {
-          text, startIndex: block.globalStart + idx,
-          endIndex: block.globalStart + idx + text.length,
+          text,
+          startIndex: allBlocks[startIdx].globalStart + idx,
+          endIndex: allBlocks[startIdx].globalStart + idx + text.length,
           contentId, fullContent: content,
         }
         setSelection(selData)
