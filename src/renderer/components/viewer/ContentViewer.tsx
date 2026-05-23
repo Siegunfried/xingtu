@@ -3,8 +3,8 @@ import { useWorkspaceStore } from '@/stores/workspaceStore'
 import { useUndoStore } from '@/stores/undoStore'
 import { useSelectionContext } from '@/stores/selectionContext'
 import { useTextSelectionStore } from '@/stores/textSelectionStore'
-import { useChatStore } from '@/stores/chatStore'
-import MarkdownRenderer from './MarkdownRenderer'
+import { parseBlocks, type ContentBlock } from '@/services/blockParser'
+import StructuredRenderer from './StructuredRenderer'
 import EmptyState from '@/components/common/EmptyState'
 
 export default function ContentViewer() {
@@ -22,21 +22,23 @@ export default function ContentViewer() {
   const [editContent, setEditContent] = useState('')
 
   const contentRef = useRef<HTMLDivElement>(null)
-  // Refs to avoid stale closures in event listener
-  const contentDataRef = useRef({ content: '', contentId: '' })
+  const blocksRef = useRef<ContentBlock[]>([])
   const file = currentFileContent
   const isNote = !!selectedNotePath
   const contentId = selectedNotePath || selectedFilePath || ''
   const content = file?.content || ''
   const title = file?.name || ''
-  // Keep refs fresh
-  contentDataRef.current = { content, contentId }
+
+  // Parse into structured blocks
+  const blocks = content ? parseBlocks(content) : []
+  // Keep blocks ref fresh for event handler
+  blocksRef.current = blocks
 
   const stack = undoStacks[contentId]
   const canUndo = !!(stack && stack.past.length > 0)
   const canRedo = !!(stack && stack.future.length > 0)
 
-  // Selection listener — both mouseup and selectionchange
+  // Selection listener — DOM-based, no indexOf
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout> | null = null
     const capture = () => {
@@ -46,17 +48,47 @@ export default function ContentViewer() {
         if (!sel || sel.isCollapsed) return
         const text = sel.toString().trim()
         if (!text) return
-        const { content: curContent, contentId: curId } = contentDataRef.current
-        if (!curContent) return
-        // Try exact match first, then try finding any overlapping text
-        let idx = curContent.indexOf(text)
-        if (idx === -1) {
-          // Try shorter match (first 20 chars)
-          const short = text.slice(0, 20)
-          idx = curContent.indexOf(short)
-          if (idx === -1) return
+
+        // Find the block containing the selection start via DOM
+        const range = sel.getRangeAt(0)
+        let node: Node | null = range.startContainer
+        let blockEl: HTMLElement | null = null
+        while (node && node !== document.body) {
+          if (node instanceof HTMLElement && node.dataset.blockId) {
+            blockEl = node
+            break
+          }
+          node = node.parentElement
         }
-        const selData = { text, startIndex: idx, endIndex: idx + text.length, contentId: curId, fullContent: curContent }
+        if (!blockEl) return
+
+        const blockId = blockEl.dataset.blockId!
+        const block = blocksRef.current.find((b) => b.id === blockId)
+        if (!block) return
+
+        // Now find the selected text within this block
+        const blockText = block.text
+        const idx = blockText.indexOf(text)
+        if (idx === -1) {
+          // Try first 30 chars
+          const short = text.slice(0, 30)
+          const sidx = blockText.indexOf(short)
+          if (sidx === -1) return
+          const selData = {
+            text, startIndex: block.globalStart + sidx,
+            endIndex: block.globalStart + sidx + text.length,
+            contentId, fullContent: content,
+          }
+          setSelection(selData)
+          storeSetSelection(selData)
+          return
+        }
+
+        const selData = {
+          text, startIndex: block.globalStart + idx,
+          endIndex: block.globalStart + idx + text.length,
+          contentId, fullContent: content,
+        }
         setSelection(selData)
         storeSetSelection(selData)
       }, 100)
@@ -68,7 +100,7 @@ export default function ContentViewer() {
       document.removeEventListener('selectionchange', capture)
       if (timer) clearTimeout(timer)
     }
-  }, [setSelection])
+  }, [setSelection, content, contentId])
 
   const handleStartEdit = () => {
     pushState(contentId, content)
@@ -176,7 +208,7 @@ export default function ContentViewer() {
               style={{ background: 'var(--input-bg)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', fontFamily: 'inherit' }}
             />
           ) : (
-            <MarkdownRenderer content={content} />
+            <StructuredRenderer blocks={blocks} />
           )}
         </div>
       </div>
