@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { useWorkspaceStore } from '@/stores/workspaceStore'
 import { useUndoStore } from '@/stores/undoStore'
 import { useTextSelectionStore } from '@/stores/textSelectionStore'
@@ -21,7 +21,6 @@ export default function ContentViewer() {
   const [editContent, setEditContent] = useState('')
 
   const contentRef = useRef<HTMLDivElement>(null)
-  const textSelection = useTextSelectionStore((s) => s.selection)
   const file = currentFileContent
   const isNote = !!selectedNotePath
   const contentId = selectedNotePath || selectedFilePath || ''
@@ -31,18 +30,30 @@ export default function ContentViewer() {
   const canUndo = !!(stack && stack.past.length > 0)
   const canRedo = !!(stack && stack.future.length > 0)
 
-  // Text selection tracking
-  const handleMouseUp = () => {
-    // Use setTimeout to ensure browser finalizes the selection
-    setTimeout(() => {
-      const sel = window.getSelection()
-      if (!sel || sel.isCollapsed || !sel.toString().trim()) { clearSelection(); return }
-      const text = sel.toString()
-      const idx = content.indexOf(text)
-      if (idx === -1) return
-      setSelection({ text, startIndex: idx, endIndex: idx + text.length, contentId, fullContent: content })
-    }, 0)
-  }
+  // Document-level selection listener — matches Doubao's approach
+  useEffect(() => {
+    const handler = () => {
+      setTimeout(() => {
+        const sel = window.getSelection()
+        if (!sel || sel.isCollapsed || !sel.toString().trim()) {
+          // Only clear if user clicked outside content area
+          const anchor = sel?.anchorNode
+          const inContent = anchor && contentRef.current?.contains(anchor)
+          if (!inContent && !sel?.toString().trim()) {
+            // Don't clear — let the store keep the selection until user clicks ×
+          }
+          return
+        }
+        const text = sel.toString()
+        if (!text.trim()) return
+        const idx = content.indexOf(text)
+        if (idx === -1) return
+        setSelection({ text, startIndex: idx, endIndex: idx + text.length, contentId, fullContent: content })
+      }, 0)
+    }
+    document.addEventListener('mouseup', handler)
+    return () => document.removeEventListener('mouseup', handler)
+  }, [content, contentId, setSelection])
 
   const handleStartEdit = () => {
     pushState(contentId, content)
@@ -142,7 +153,7 @@ export default function ContentViewer() {
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto px-8 py-6" onMouseUp={handleMouseUp}>
+      <div className="flex-1 overflow-y-auto px-8 py-6">
         <div className="max-w-3xl mx-auto relative" ref={contentRef}>
           {isEditing ? (
             <textarea value={editContent} onChange={(e) => setEditContent(e.target.value)}
