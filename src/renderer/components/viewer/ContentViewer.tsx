@@ -71,41 +71,39 @@ export default function ContentViewer() {
         const endIdx = allBlocks.findIndex((b) => b.id === endId)
         if (startIdx === -1 || endIdx === -1) return
 
-        // Strip markdown prefixes to get rendered text for comparison
+        // Strip markdown prefixes
         const stripMD = (t: string): string => t.replace(/^#{1,3}\s/, '').replace(/^>\s?/, '').replace(/^[-*+]\s/, '').replace(/^\d+[.)]\s/, '')
 
-        // Collect plain text (without markdown syntax) from blocks in selection range
-        let plainText = ''
+        // Collect stripped block texts
+        const strippedBlocks: string[] = []
         let prefixOffset = 0
         for (let i = startIdx; i <= endIdx; i++) {
           if (allBlocks[i].type === 'empty') continue
           const raw = allBlocks[i].text
-          const stripped = stripMD(raw)
-          if (i === startIdx) prefixOffset = raw.length - stripped.length
-          plainText += (plainText ? '\n' : '') + stripped
+          const s = stripMD(raw)
+          if (i === startIdx) prefixOffset = raw.length - s.length
+          strippedBlocks.push(s)
         }
 
-        // Find selected text in the plain (rendered) version
-        const idx = plainText.indexOf(text)
-        if (idx === -1) {
+        // Try matching with different joiners (browsers use different spacing between blocks)
+        const joiners = ['\n\n', '\n', '\n\n\n', ' ']
+        let foundIdx = -1
+        let usedJoiner = ''
+        for (const j of joiners) {
+          const candidate = strippedBlocks.join(j)
+          foundIdx = candidate.indexOf(text)
+          if (foundIdx !== -1) { usedJoiner = j; break }
+          // Also try first 40 chars
           const short = text.slice(0, 40)
-          const sidx = plainText.indexOf(short)
-          if (sidx === -1) return
-          const selData = {
-            text,
-            startIndex: allBlocks[startIdx].globalStart + prefixOffset + sidx,
-            endIndex: allBlocks[startIdx].globalStart + prefixOffset + sidx + text.length,
-            contentId, fullContent: content,
-          }
-          setSelection(selData)
-          storeSetSelection(selData)
-          return
+          foundIdx = candidate.indexOf(short)
+          if (foundIdx !== -1) { usedJoiner = j; break }
         }
+        if (foundIdx === -1) return
 
         const selData = {
           text,
-          startIndex: allBlocks[startIdx].globalStart + prefixOffset + idx,
-          endIndex: allBlocks[startIdx].globalStart + prefixOffset + idx + text.length,
+          startIndex: allBlocks[startIdx].globalStart + prefixOffset + foundIdx,
+          endIndex: allBlocks[startIdx].globalStart + prefixOffset + foundIdx + text.length,
           contentId, fullContent: content,
         }
         setSelection(selData)
