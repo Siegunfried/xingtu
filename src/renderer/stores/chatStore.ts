@@ -28,8 +28,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
   error: null,
 
   loadMessages: async (documentId) => {
-    const msgs = await getMessages(documentId)
-    set({ messages: msgs })
+    // Start fresh each time - don't show old conversations
+    set({ messages: [], streamingContent: '', isStreaming: false })
   },
 
   sendMessage: async (content) => {

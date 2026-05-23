@@ -2,21 +2,23 @@ import React from 'react'
 import ChatMessages from './ChatMessages'
 import ChatInput from './ChatInput'
 import { useWorkspaceStore } from '@/stores/workspaceStore'
+import { useTextSelectionStore } from '@/stores/textSelectionStore'
 
 export default function AIPanel() {
   const selectedFilePath = useWorkspaceStore((s) => s.selectedFilePath)
   const activeNotePath = useWorkspaceStore((s) => s.activeNotePath)
   const setActiveNote = useWorkspaceStore((s) => s.setActiveNote)
+  const textSelection = useTextSelectionStore((s) => s.selection)
+  const clearSelection = useTextSelectionStore((s) => s.clearSelection)
 
-  const handleNewNote = () => {
-    setActiveNote(null) // Next AI response will create a new note
-  }
+  const handleNewNote = () => setActiveNote(null)
 
   return (
     <div className="flex flex-col h-full" style={{
       background: 'var(--bg-secondary)',
       borderLeft: '1px solid var(--border-color)',
     }}>
+      {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 flex-shrink-0"
         style={{ borderBottom: '1px solid var(--border-color)' }}>
         <div className="flex items-center gap-2">
@@ -42,6 +44,28 @@ export default function AIPanel() {
           </button>
         )}
       </div>
+
+      {/* Selection hint */}
+      {textSelection && (
+        <div className="flex items-center gap-2 px-4 py-2 flex-shrink-0 animate-fade-in"
+          style={{ background: 'rgba(0,113,227,0.06)', borderBottom: '1px solid var(--border-color)' }}>
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"
+            style={{ color: 'var(--accent)', flexShrink: 0 }}>
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+          </svg>
+          <span className="text-[10px] truncate flex-1" style={{ color: 'var(--accent)' }}>
+            已选中：{textSelection.text.length > 60 ? textSelection.text.slice(0, 60) + '...' : textSelection.text}
+          </span>
+          <button onClick={clearSelection}
+            className="w-4 h-4 rounded flex items-center justify-center flex-shrink-0"
+            style={{ color: 'var(--text-tertiary)' }}>
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        </div>
+      )}
+
       <ChatMessages />
       <ChatInput />
     </div>

@@ -2,6 +2,7 @@ import React, { useState, useCallback, useRef } from 'react'
 import { useWorkspaceStore } from '@/stores/workspaceStore'
 import { useUndoStore } from '@/stores/undoStore'
 import { useTextSelectionStore } from '@/stores/textSelectionStore'
+import { useChatStore } from '@/stores/chatStore'
 import MarkdownRenderer from './MarkdownRenderer'
 import EmptyState from '@/components/common/EmptyState'
 
@@ -16,9 +17,6 @@ export default function ContentViewer() {
   const undoStacks = useUndoStore((s) => s.undoStacks)
   const setSelection = useTextSelectionStore((s) => s.setSelection)
   const clearSelection = useTextSelectionStore((s) => s.clearSelection)
-  const setToolbar = useTextSelectionStore((s) => s.setToolbar)
-  const showToolbar = useTextSelectionStore((s) => s.showToolbar)
-  const toolbarPos = useTextSelectionStore((s) => s.toolbarPos)
   const [isEditing, setIsEditing] = useState(false)
   const [editContent, setEditContent] = useState('')
 
@@ -40,10 +38,7 @@ export default function ContentViewer() {
     const idx = content.indexOf(text)
     if (idx === -1) return
     setSelection({ text, startIndex: idx, endIndex: idx + text.length, contentId, fullContent: content })
-    const range = sel.getRangeAt(0)
-    const rect = range.getBoundingClientRect()
-    setToolbar(true, { x: rect.left + rect.width / 2, y: rect.top - 40 })
-  }, [content, contentId, setSelection, clearSelection, setToolbar])
+  }, [content, contentId, setSelection, clearSelection])
 
   const handleStartEdit = () => {
     pushState(contentId, content)
@@ -62,7 +57,6 @@ export default function ContentViewer() {
     if (isEditing) {
       setEditContent(prev)
     } else {
-      pushState(contentId, content)
       saveCurrentFile(prev)
     }
   }
@@ -73,7 +67,6 @@ export default function ContentViewer() {
     if (isEditing) {
       setEditContent(next)
     } else {
-      pushState(contentId, content)
       saveCurrentFile(next)
     }
   }
@@ -147,19 +140,6 @@ export default function ContentViewer() {
       {/* Content */}
       <div className="flex-1 overflow-y-auto px-8 py-6" onMouseUp={handleMouseUp}>
         <div className="max-w-3xl mx-auto relative" ref={contentRef}>
-          {showToolbar && (
-            <div className="fixed z-50 animate-fade-in"
-              style={{ left: toolbarPos.x, top: toolbarPos.y, transform: 'translate(-50%, 0)' }}>
-              <button onClick={() => { window.getSelection()?.removeAllRanges(); setToolbar(false) }}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium shadow-lg smooth-transition"
-                style={{ background: 'var(--accent)', color: '#fff' }}>
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-                </svg>
-                基于选中提问
-              </button>
-            </div>
-          )}
           {isEditing ? (
             <textarea value={editContent} onChange={(e) => setEditContent(e.target.value)}
               className="w-full h-[calc(100vh-120px)] resize-none rounded-xl p-4 text-sm outline-none leading-relaxed"
