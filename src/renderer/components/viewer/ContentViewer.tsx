@@ -36,27 +36,36 @@ export default function ContentViewer() {
   const canUndo = !!(stack && stack.past.length > 0)
   const canRedo = !!(stack && stack.future.length > 0)
 
-  // Selection listener — uses selectionchange for instant reactivity
+  // Selection listener — both mouseup and selectionchange
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout> | null = null
-    const handler = () => {
+    const capture = () => {
       if (timer) clearTimeout(timer)
       timer = setTimeout(() => {
         const sel = window.getSelection()
-        if (!sel || sel.isCollapsed || !sel.toString().trim()) return
+        if (!sel || sel.isCollapsed) return
         const text = sel.toString().trim()
         if (!text) return
         const { content: curContent, contentId: curId } = contentDataRef.current
-        const idx = curContent.indexOf(text)
-        if (idx === -1) return
+        if (!curContent) return
+        // Try exact match first, then try finding any overlapping text
+        let idx = curContent.indexOf(text)
+        if (idx === -1) {
+          // Try shorter match (first 20 chars)
+          const short = text.slice(0, 20)
+          idx = curContent.indexOf(short)
+          if (idx === -1) return
+        }
         const selData = { text, startIndex: idx, endIndex: idx + text.length, contentId: curId, fullContent: curContent }
         setSelection(selData)
         storeSetSelection(selData)
-      }, 150)
+      }, 100)
     }
-    document.addEventListener('selectionchange', handler)
+    document.addEventListener('mouseup', capture)
+    document.addEventListener('selectionchange', capture)
     return () => {
-      document.removeEventListener('selectionchange', handler)
+      document.removeEventListener('mouseup', capture)
+      document.removeEventListener('selectionchange', capture)
       if (timer) clearTimeout(timer)
     }
   }, [setSelection])
