@@ -21,39 +21,37 @@ export default function ContentViewer() {
   const [editContent, setEditContent] = useState('')
 
   const contentRef = useRef<HTMLDivElement>(null)
+  // Refs to avoid stale closures in event listener
+  const contentDataRef = useRef({ content: '', contentId: '' })
   const file = currentFileContent
   const isNote = !!selectedNotePath
   const contentId = selectedNotePath || selectedFilePath || ''
   const content = file?.content || ''
   const title = file?.name || ''
+  // Keep refs fresh
+  contentDataRef.current = { content, contentId }
+
   const stack = undoStacks[contentId]
   const canUndo = !!(stack && stack.past.length > 0)
   const canRedo = !!(stack && stack.future.length > 0)
 
-  // Document-level selection listener — matches Doubao's approach
+  // Document-level selection listener
   useEffect(() => {
     const handler = () => {
       setTimeout(() => {
         const sel = window.getSelection()
-        if (!sel || sel.isCollapsed || !sel.toString().trim()) {
-          // Only clear if user clicked outside content area
-          const anchor = sel?.anchorNode
-          const inContent = anchor && contentRef.current?.contains(anchor)
-          if (!inContent && !sel?.toString().trim()) {
-            // Don't clear — let the store keep the selection until user clicks ×
-          }
-          return
-        }
-        const text = sel.toString()
-        if (!text.trim()) return
-        const idx = content.indexOf(text)
+        if (!sel || sel.isCollapsed || !sel.toString().trim()) return
+        const text = sel.toString().trim()
+        if (!text) return
+        const { content: curContent, contentId: curId } = contentDataRef.current
+        const idx = curContent.indexOf(text)
         if (idx === -1) return
-        setSelection({ text, startIndex: idx, endIndex: idx + text.length, contentId, fullContent: content })
+        setSelection({ text, startIndex: idx, endIndex: idx + text.length, contentId: curId, fullContent: curContent })
       }, 0)
     }
     document.addEventListener('mouseup', handler)
     return () => document.removeEventListener('mouseup', handler)
-  }, [content, contentId, setSelection])
+  }, [setSelection])
 
   const handleStartEdit = () => {
     pushState(contentId, content)

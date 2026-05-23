@@ -45,17 +45,26 @@ export default function AIPanel() {
         )}
       </div>
 
-      {/* Selection hint */}
-      {textSelection && (
-        <div className="flex items-center gap-2 px-4 py-2 flex-shrink-0 animate-fade-in"
-          style={{ background: 'rgba(0,113,227,0.06)', borderBottom: '1px solid var(--border-color)' }}>
-          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"
-            style={{ color: 'var(--accent)', flexShrink: 0 }}>
-            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-          </svg>
-          <span className="text-[10px] truncate flex-1" style={{ color: 'var(--accent)' }}>
-            已选中：{textSelection.text.length > 60 ? textSelection.text.slice(0, 60) + '...' : textSelection.text}
-          </span>
+      {/* Selection hint — always rendered, content from store */}
+      <div className="flex items-center gap-2 px-4 py-2 flex-shrink-0 animate-fade-in"
+        style={{
+          background: textSelection ? 'rgba(0,113,227,0.06)' : 'transparent',
+          borderBottom: textSelection ? '1px solid var(--border-color)' : '1px solid transparent',
+          transition: 'all 0.2s',
+        }}>
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"
+          style={{ color: textSelection ? 'var(--accent)' : 'transparent', flexShrink: 0, transition: 'color 0.2s' }}>
+          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+        </svg>
+        <span className="text-[10px] truncate flex-1" style={{
+          color: textSelection ? 'var(--accent)' : 'var(--text-tertiary)',
+          transition: 'color 0.2s',
+        }}>
+          {textSelection
+            ? `已选中：${textSelection.text.length > 60 ? textSelection.text.slice(0, 60) + '...' : textSelection.text}`
+            : '选中文本即可基于内容提问'}
+        </span>
+        {textSelection && (
           <button onClick={clearSelection}
             className="w-4 h-4 rounded flex items-center justify-center flex-shrink-0"
             style={{ color: 'var(--text-tertiary)' }}>
@@ -63,8 +72,8 @@ export default function AIPanel() {
               <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
             </svg>
           </button>
-        </div>
-      )}
+        )}
+      </div>
 
       <ChatMessages />
       <ChatInput />
