@@ -45,30 +45,39 @@ export default function AIPanel() {
         )}
       </div>
 
-      {/* Selection hint — always rendered, content from store */}
-      <div className="flex items-center gap-2 px-4 py-2 flex-shrink-0 animate-fade-in"
+      {/* Selection hint — visually prominent when active */}
+      <div className="flex items-center gap-2 px-4 py-2.5 flex-shrink-0"
         style={{
-          background: textSelection ? 'rgba(0,113,227,0.06)' : 'transparent',
-          borderBottom: textSelection ? '1px solid var(--border-color)' : '1px solid transparent',
-          transition: 'all 0.2s',
+          background: textSelection
+            ? 'rgba(0,113,227,0.1)'
+            : 'transparent',
+          borderBottom: textSelection
+            ? '1.5px solid rgba(0,113,227,0.25)'
+            : '1.5px solid transparent',
+          transition: 'all 0.25s ease',
         }}>
-        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"
-          style={{ color: textSelection ? 'var(--accent)' : 'transparent', flexShrink: 0, transition: 'color 0.2s' }}>
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"
+          style={{
+            color: textSelection ? 'var(--accent)' : 'transparent',
+            flexShrink: 0,
+            transition: 'color 0.25s',
+            opacity: textSelection ? 1 : 0,
+          }}>
           <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
         </svg>
-        <span className="text-[10px] truncate flex-1" style={{
+        <span className="text-[10px] truncate flex-1 font-medium" style={{
           color: textSelection ? 'var(--accent)' : 'var(--text-tertiary)',
-          transition: 'color 0.2s',
+          transition: 'color 0.25s',
         }}>
           {textSelection
-            ? `已选中：${textSelection.text.length > 60 ? textSelection.text.slice(0, 60) + '...' : textSelection.text}`
+            ? `已选中 ${textSelection.text.length} 字 · 输入问题基于选中内容回答`
             : '选中文本即可基于内容提问'}
         </span>
         {textSelection && (
           <button onClick={clearSelection}
-            className="w-4 h-4 rounded flex items-center justify-center flex-shrink-0"
-            style={{ color: 'var(--text-tertiary)' }}>
-            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 hover:bg-blue-500/10 transition-colors"
+            style={{ color: 'var(--accent)' }}>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
             </svg>
           </button>

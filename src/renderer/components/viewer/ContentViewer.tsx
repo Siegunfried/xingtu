@@ -35,10 +35,12 @@ export default function ContentViewer() {
   const canUndo = !!(stack && stack.past.length > 0)
   const canRedo = !!(stack && stack.future.length > 0)
 
-  // Document-level selection listener
+  // Selection listener — uses selectionchange for instant reactivity
   useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | null = null
     const handler = () => {
-      setTimeout(() => {
+      if (timer) clearTimeout(timer)
+      timer = setTimeout(() => {
         const sel = window.getSelection()
         if (!sel || sel.isCollapsed || !sel.toString().trim()) return
         const text = sel.toString().trim()
@@ -47,10 +49,13 @@ export default function ContentViewer() {
         const idx = curContent.indexOf(text)
         if (idx === -1) return
         setSelection({ text, startIndex: idx, endIndex: idx + text.length, contentId: curId, fullContent: curContent })
-      }, 0)
+      }, 150)
     }
-    document.addEventListener('mouseup', handler)
-    return () => document.removeEventListener('mouseup', handler)
+    document.addEventListener('selectionchange', handler)
+    return () => {
+      document.removeEventListener('selectionchange', handler)
+      if (timer) clearTimeout(timer)
+    }
   }, [setSelection])
 
   const handleStartEdit = () => {
