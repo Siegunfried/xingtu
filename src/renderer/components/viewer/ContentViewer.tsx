@@ -71,25 +71,30 @@ export default function ContentViewer() {
         const endIdx = allBlocks.findIndex((b) => b.id === endId)
         if (startIdx === -1 || endIdx === -1) return
 
-        // Collect text from all blocks in selection range
-        let selectedText = ''
+        // Strip markdown prefixes to get rendered text for comparison
+        const stripMD = (t: string): string => t.replace(/^#{1,3}\s/, '').replace(/^>\s?/, '').replace(/^[-*+]\s/, '').replace(/^\d+[.)]\s/, '')
+
+        // Collect plain text (without markdown syntax) from blocks in selection range
+        let plainText = ''
+        let prefixOffset = 0
         for (let i = startIdx; i <= endIdx; i++) {
-          if (allBlocks[i].type !== 'empty') {
-            selectedText += (selectedText ? '\n' : '') + allBlocks[i].text
-          }
+          if (allBlocks[i].type === 'empty') continue
+          const raw = allBlocks[i].text
+          const stripped = stripMD(raw)
+          if (i === startIdx) prefixOffset = raw.length - stripped.length
+          plainText += (plainText ? '\n' : '') + stripped
         }
 
-        // Find selected text position in concatenated block text
-        const idx = selectedText.indexOf(text)
+        // Find selected text in the plain (rendered) version
+        const idx = plainText.indexOf(text)
         if (idx === -1) {
-          // Try first 40 chars
           const short = text.slice(0, 40)
-          const sidx = selectedText.indexOf(short)
+          const sidx = plainText.indexOf(short)
           if (sidx === -1) return
           const selData = {
             text,
-            startIndex: allBlocks[startIdx].globalStart + sidx,
-            endIndex: allBlocks[startIdx].globalStart + sidx + text.length,
+            startIndex: allBlocks[startIdx].globalStart + prefixOffset + sidx,
+            endIndex: allBlocks[startIdx].globalStart + prefixOffset + sidx + text.length,
             contentId, fullContent: content,
           }
           setSelection(selData)
@@ -99,8 +104,8 @@ export default function ContentViewer() {
 
         const selData = {
           text,
-          startIndex: allBlocks[startIdx].globalStart + idx,
-          endIndex: allBlocks[startIdx].globalStart + idx + text.length,
+          startIndex: allBlocks[startIdx].globalStart + prefixOffset + idx,
+          endIndex: allBlocks[startIdx].globalStart + prefixOffset + idx + text.length,
           contentId, fullContent: content,
         }
         setSelection(selData)
