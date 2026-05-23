@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { useWorkspaceStore } from '@/stores/workspaceStore'
 import { useUndoStore } from '@/stores/undoStore'
+import { useSelectionContext } from '@/stores/selectionContext'
 import { useTextSelectionStore } from '@/stores/textSelectionStore'
 import { useChatStore } from '@/stores/chatStore'
 import MarkdownRenderer from './MarkdownRenderer'
@@ -15,8 +16,8 @@ export default function ContentViewer() {
   const undo = useUndoStore((s) => s.undo)
   const redo = useUndoStore((s) => s.redo)
   const undoStacks = useUndoStore((s) => s.undoStacks)
-  const setSelection = useTextSelectionStore((s) => s.setSelection)
-  const clearSelection = useTextSelectionStore((s) => s.clearSelection)
+  const { setSelection } = useSelectionContext()
+  const storeSetSelection = useTextSelectionStore((s) => s.setSelection)
   const [isEditing, setIsEditing] = useState(false)
   const [editContent, setEditContent] = useState('')
 
@@ -48,7 +49,9 @@ export default function ContentViewer() {
         const { content: curContent, contentId: curId } = contentDataRef.current
         const idx = curContent.indexOf(text)
         if (idx === -1) return
-        setSelection({ text, startIndex: idx, endIndex: idx + text.length, contentId: curId, fullContent: curContent })
+        const selData = { text, startIndex: idx, endIndex: idx + text.length, contentId: curId, fullContent: curContent }
+        setSelection(selData)
+        storeSetSelection(selData)
       }, 150)
     }
     document.addEventListener('selectionchange', handler)

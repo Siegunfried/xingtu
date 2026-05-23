@@ -3,6 +3,7 @@ import ThreeColumnLayout from '@/components/layout/ThreeColumnLayout'
 import { useWorkspaceStore } from '@/stores/workspaceStore'
 import DiffPanel from '@/components/diff/DiffPanel'
 import StarMapPanel from '@/components/starmap/StarMapPanel'
+import { SelectionProvider } from '@/stores/selectionContext'
 import { useDiffStore } from '@/stores/diffStore'
 import { useUndoStore } from '@/stores/undoStore'
 
@@ -74,11 +75,13 @@ export default function App() {
     <div className="h-screen w-screen overflow-hidden"
       onDragEnter={handleDragEnter} onDragOver={handleDragOver}
       onDragLeave={handleDragLeave} onDrop={handleDrop}>
-      {showStarMap ? (
-        <StarMapPanel onClose={() => setShowStarMap(false)} />
-      ) : (
-        <ThreeColumnLayout onOpenStarMap={() => setShowStarMap(true)} />
-      )}
+      <SelectionProvider>
+        {showStarMap ? (
+          <StarMapPanel onClose={() => setShowStarMap(false)} />
+        ) : (
+          <ThreeColumnLayout onOpenStarMap={() => setShowStarMap(true)} />
+        )}
+      </SelectionProvider>
 
       {isDragging && (
         <div className="fixed inset-0 z-50 flex items-center justify-center animate-fade-in"

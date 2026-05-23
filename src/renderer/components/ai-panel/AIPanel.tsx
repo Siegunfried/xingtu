@@ -2,14 +2,13 @@ import React from 'react'
 import ChatMessages from './ChatMessages'
 import ChatInput from './ChatInput'
 import { useWorkspaceStore } from '@/stores/workspaceStore'
-import { useTextSelectionStore } from '@/stores/textSelectionStore'
+import { useSelectionContext } from '@/stores/selectionContext'
 
 export default function AIPanel() {
   const selectedFilePath = useWorkspaceStore((s) => s.selectedFilePath)
   const activeNotePath = useWorkspaceStore((s) => s.activeNotePath)
   const setActiveNote = useWorkspaceStore((s) => s.setActiveNote)
-  const textSelection = useTextSelectionStore((s) => s.selection)
-  const clearSelection = useTextSelectionStore((s) => s.clearSelection)
+  const { selection: textSelection, clearSelection } = useSelectionContext()
 
   const handleNewNote = () => setActiveNote(null)
 
