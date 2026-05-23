@@ -149,20 +149,24 @@ export default function StarMapPanel({ onClose }: Props) {
 
       const projected = nodes.map((n) => ({ n, ...project(n.x, n.y, 0) })).sort((a, b) => b.d - a.d)
 
-      // === Constellation edges ===
+      // === Tree edges: solid lines connecting parent-child ===
       for (const node of nodes) {
         if (!node.parentPath) continue
         const parent = nodes.find((n) => n.path === node.parentPath)
         if (!parent) continue
         const sp = project(parent.x, parent.y, 0)
         const tp = project(node.x, node.y, 0)
-        const midAlpha = (sp.s + tp.s) / 2 * 0.6
-        const dashLen = 6 * Math.min(sp.s, tp.s)
-        ctx.setLineDash([dashLen, dashLen * 0.6])
-        ctx.strokeStyle = `rgba(80,140,230,${Math.max(0.08, midAlpha)})`
-        ctx.lineWidth = 0.6 * Math.min(sp.s, tp.s)
+        const alpha = 0.12 + (sp.s + tp.s) * 0.25
+
+        // Glow under-line
+        ctx.strokeStyle = `rgba(80,140,230,${alpha * 0.3})`
+        ctx.lineWidth = 2.5 * Math.min(sp.s, tp.s)
         ctx.beginPath(); ctx.moveTo(sp.sx, sp.sy); ctx.lineTo(tp.sx, tp.sy); ctx.stroke()
-        ctx.setLineDash([])
+
+        // Main line
+        ctx.strokeStyle = `rgba(120,170,240,${alpha})`
+        ctx.lineWidth = 0.8 * Math.min(sp.s, tp.s)
+        ctx.beginPath(); ctx.moveTo(sp.sx, sp.sy); ctx.lineTo(tp.sx, tp.sy); ctx.stroke()
       }
 
       // === Nodes ===
